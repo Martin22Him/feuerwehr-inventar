@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Feuerwehr Inventar</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        h1 {
+            margin-bottom: 10px;
+            color: #222;
+        }
+
+        p {
+            color: #555;
+            margin-bottom: 30px;
+        }
+
+        .button-group {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .hauptbutton {
+            display: inline-block;
+            padding: 15px 30px;
+            background-color: #005bbb;
+            color: white;
+            text-decoration: none;
+            border-radius: 8px;
+            font-size: 18px;
+            border: none;
+            cursor: pointer;
+        }
+
+        .hauptbutton:hover {
+            background-color: #004799;
+        }
+
+        .deaktiviert {
+            background-color: #999;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Feuerwehr Inventarsystem</h1>
+        <p>Bitte Bereich auswählen:</p>
+
+        <div class="button-group">
+            <a href="/geraete" class="hauptbutton">Gerätschaften</a>
+            <button class="hauptbutton deaktiviert" disabled>Kleidung (später)</button>
+        </div>
+    </div>
+</body>
+</html>

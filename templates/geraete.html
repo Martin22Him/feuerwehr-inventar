@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Gerätschaften</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            margin-top: 0;
+            color: #222;
+        }
+
+        .top-links {
+            margin-bottom: 20px;
+        }
+
+        .top-links a {
+            text-decoration: none;
+            color: #005bbb;
+            font-weight: bold;
+        }
+
+        .filter-box {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            min-width: 180px;
+        }
+
+        label {
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        select, input[type="text"] {
+            padding: 8px;
+            border: 1px solid #bbb;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .button {
+            padding: 10px 18px;
+            background-color: #005bbb;
+            color: white;
+            text-decoration: none;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .button:hover {
+            background-color: #004799;
+        }
+
+        .button-secondary {
+            background-color: #555;
+        }
+
+        .button-secondary:hover {
+            background-color: #444;
+        }
+
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            border-collapse: collapse;
+            width: 100%;
+            min-width: 1100px;
+        }
+
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #333;
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f7f7f7;
+        }
+
+        tr:hover {
+            background-color: #eaf3ff;
+        }
+
+        .info-bar {
+            margin-bottom: 15px;
+            color: #555;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Gerätschaften</h1>
+
+        <div class="top-links">
+            <a href="/">← Zurück zur Startseite</a>
+        </div>
+
+        <form method="get" class="filter-box">
+            <div class="filter-group">
+                <label for="fahrzeug">Fahrzeug</label>
+                <select name="fahrzeug" id="fahrzeug">
+                    <option value="">Alle</option>
+                    {% for f in fahrzeuge %}
+                        <option value="{{ f }}" {% if fahrzeug == f %}selected{% endif %}>{{ f }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="kategorie">Kategorie</label>
+                <select name="kategorie" id="kategorie">
+                    <option value="">Alle</option>
+                    {% for k in kategorien %}
+                        <option value="{{ k }}" {% if kategorie == k %}selected{% endif %}>{{ k }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="filter-group" style="flex: 1;">
+                <label for="suche">Suche</label>
+                <input type="text" name="suche" id="suche" value="{{ suche }}" placeholder="z. B. Name, Nummer, Fach, Bemerkung">
+            </div>
+
+            <div class="filter-group">
+                <button type="submit" class="button">Filtern</button>
+            </div>
+
+            <div class="filter-group">
+                <a href="/geraete" class="button button-secondary">Zurücksetzen</a>
+            </div>
+
+            <div class="filter-group">
+                <a href="/prueftermine?fahrzeug={{ fahrzeug or '' }}&kategorie={{ kategorie or '' }}" class="button">Prüftermine anzeigen</a>
+            </div>
+        </form>
+
+        <div class="info-bar">
+            Angezeigte Einträge: {{ daten|length }}
+        </div>
+
+        <div class="table-wrapper">
+            <table>
+                <tr>
+                    <th>Interne Nummer</th>
+		    <th>Barcode</th>
+                    <th>Name</th>
+                    <th>Kategorie</th>
+                    <th>Hersteller</th>
+                    <th>Standort</th>
+                    <th>Fachnummer</th>
+                    <th>Prüfdatum</th>
+                    <th>Ablaufdatum</th>
+                    <th>Anzahl</th>
+                    <th>Bemerkung</th>
+                </tr>
+
+                {% for item in daten %}
+                <tr>
+                    <td>{{ item["Interne Nummer"] }}</td>
+                    <td>{{ item["Barcode"] }}</td>
+                    <td>{{ item["Name"] }}</td>
+                    <td>{{ item["Kategorie"] }}</td>
+                    <td>{{ item["Hersteller"] }}</td>
+                    <td>{{ item["Standort"] }}</td>
+                    <td>{{ item["Fachnummer"] }}</td>
+                    <td>{{ item["Prüfdatum"] }}</td>
+                    <td>{{ item["Ablaufdatum"] }}</td>
+                    <td>{{ item["Anzahl"] }}</td>
+                    <td>{{ item["Bemerkung"] }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+</body>
+</html>
