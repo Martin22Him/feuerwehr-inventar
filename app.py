@@ -84,10 +84,13 @@ def fahrzeug(name):
     mapping = {
         "tlf": ("TLF", "Tanklöschfahrzeug", "fahrzeug"),
         "lf": ("LF", "Löschgruppenfahrzeug", "fahrzeug"),
-        "schlauchanhaenger": ("Schlauchanhänger", "Schlauchanhänger", "schlauch"),
-        "ts": ("TS-Anhänger", "Tragkraftspritzenanhänger", "none"),
-        "boot": ("Boot-Anhänger", "Boot-Anhänger", "none"),
+        "schlauchanhaenger": ("SA", "Schlauchanhänger", "schlauch"),
+        "ts": ("TSA", "Tragkraftspritzenanhänger", "none"),
+        "boot": ("BoA", "Boot-Anhänger", "none"),
     }
+
+    if name not in mapping:
+        return f"Unbekanntes Fahrzeug: {name}"
 
     fahrzeug_name, titel, typ = mapping[name]
 
