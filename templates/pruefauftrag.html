@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}Prüfauftrag / Geräte in Prüfung{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Prüfauftrag / Geräte in Prüfung</h2>
+    <p>
+        Hier werden Geräte angezeigt, die aktuell zur Prüfung angemeldet oder bereits in Prüfung sind.
+    </p>
+
+    <a href="/barcode_sammeln" class="nav-button" style="display:inline-block; width:auto;">
+    Barcode-Sammelliste / Scan starten
+    </a>
+</div>
+
+<div class="box">
+    {% if daten %}
+        <div class="table-wrapper">
+            <table class="inventar-tabelle">
+                <tr>
+                    <th>Interne Nummer</th>
+                    <th>Name</th>
+                    <th>Fahrzeug</th>
+                    <th>Fachnummer</th>
+                    <th>Prüfstatus</th>
+                    <th>Prüfstelle</th>
+                    <th>Prüfauftrag Datum</th>
+                    <th>Details</th>
+                    <th>Aktion</th>
+                </tr>
+
+                {% for item in daten %}
+                <tr>
+                    <td>{{ item["interne_nummer"] }}</td>
+                    <td>{{ item["name"] }}</td>
+                    <td>{{ item["fahrzeug"] }}</td>
+                    <td>{{ item["fachnummer"] }}</td>
+                    <td>{{ item["pruefstatus"] }}</td>
+                    <td>{{ item["pruefstelle"] }}</td>
+                    <td>{{ item["pruefauftrag_datum"] }}</td>
+                    <td>
+                        <a href="/geraet/{{ item['id'] }}">Details</a>
+                    </td>
+                    <td>
+                        <a href="/geraet/{{ item['id'] }}/pruefung_abschliessen">Zurück aus Prüfung</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    {% else %}
+        <p>Aktuell sind keine Geräte als „in Prüfung“ markiert.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}{% endblock %}</title>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #f4f6f8;
+        }
+
+        /* HEADER */
+        .header {
+            background: linear-gradient(90deg, #4a73b8 0%, #5d86c7 100%);
+            color: white;
+            text-align: center;
+            padding: 22px;
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+
+        /* LAYOUT */
+        .layout {
+            display: flex;
+        }
+
+        /* SIDEBAR */
+        .sidebar {
+            width: 240px;
+            background: linear-gradient(180deg, #4c6fae 0%, #3f5f98 100%);
+            padding: 18px 14px;
+            min-height: 100vh;
+            box-shadow: inset -1px 0 0 rgba(255,255,255,0.15);
+        }
+
+        details {
+            margin-bottom: 10px;
+        }
+
+        summary {
+            list-style: none;
+            cursor: pointer;
+        }
+
+        summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .nav-button {
+            display: block;
+            background: rgba(255,255,255,0.9);
+            margin-bottom: 10px;
+            padding: 11px 12px;
+            text-decoration: none;
+            color: #1f2d3d;
+            border-radius: 8px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        }
+
+        .nav-button:hover {
+            background: #ffffff;
+            transform: translateX(2px);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+        }
+
+        .submenu {
+            margin-left: 12px;
+            padding-left: 8px;
+            border-left: 2px solid rgba(255,255,255,0.35);
+        }
+
+        .submenu .nav-button {
+            background: rgba(255,255,255,0.82);
+            font-weight: 500;
+            font-size: 14px;
+            padding: 9px 11px;
+        }
+
+        /* CONTENT */
+        .content {
+            flex: 1;
+            padding: 30px;
+        }
+
+        .box {
+            background: white;
+            padding: 22px;
+            margin-bottom: 22px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.8);
+        }
+
+        /* TABELLEN-DESIGN (NEU) */
+        .table-wrapper {
+            max-height: 60vh;
+            overflow-y: auto;
+            overflow-x: auto;
+            border-radius: 8px;
+        }
+
+        .inventar-tabelle {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1000px;
+            background: white;
+        }
+
+        .inventar-tabelle th {
+            position: sticky;
+            top: 0;
+            background-color: #5a7fc2;
+            color: white;
+            z-index: 2;
+        }
+
+        .inventar-tabelle th,
+        .inventar-tabelle td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .inventar-tabelle tr:nth-child(even) {
+            background-color: #f7f7f7;
+        }
+
+        .inventar-tabelle tr:hover {
+            background-color: #eaf3ff;
+        }
+    
+        .status-rot td {
+            background-color: #f8d7da !important;
+        }
+
+        .status-gelb td {
+            background-color: #fff3cd !important;
+        }
+
+        .status-blau td {
+            background-color: #cfe2ff !important;
+        }
+
+    </style>
+</head>
+
+<body>
+
+<div class="header">
+    Feuerwehr Jesewitz
+</div>
+
+<div class="layout">
+
+    <!-- SIDEBAR -->
+    <div class="sidebar">
+
+        <a href="/" class="nav-button">Startseite</a>
+        <a href="/geraete" class="nav-button">Gerätschaften</a>
+        <a href="/geraet/neu" class="nav-button">Gerät hinzufügen</a>
+        <a href="/geraete?kategorie=Atemschutzgerät" class="nav-button">Atemschutz</a>
+
+        <details>
+            <summary class="nav-button">Fahrzeuge</summary>
+            <div class="submenu">
+                <a href="/fahrzeug/tlf" class="nav-button">TLF</a>
+                <a href="/fahrzeug/lf" class="nav-button">LF</a>
+                <a href="/fahrzeug/schlauchanhaenger" class="nav-button">Schlauchanhänger</a>
+                <a href="/fahrzeug/ts" class="nav-button">TS-Anhänger</a>
+                <a href="/fahrzeug/boot" class="nav-button">Boot-Anhänger</a>
+            </div>
+        </details>
+
+        <a href="/prueftermine" class="nav-button">Prüftermine</a>
+        <a href="/pruefauftrag" class="nav-button">Geräte in Prüfung</a>
+        <a href="/pruefstellen" class="nav-button">Prüfstellen</a>
+        <a href="/barcode_suche" class="nav-button">Barcode-Suche</a>
+        <a href="/kleidung" class="nav-button">Kleidung</a>
+        <a href="/geraete?fahrzeug=Lager" class="nav-button">Lager</a>
+
+    </div>
+
+    <!-- CONTENT -->
+    <div class="content">
+        {% block content %}{% endblock %}
+    </div>
+
+</div>
+
+</body>
+</html>
