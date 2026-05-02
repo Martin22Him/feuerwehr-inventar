@@ -1,13 +1,135 @@
-from flask import Flask, render_template, request, redirect, url_for, session
+import os
 import sqlite3
-import pandas as pd
+from datetime import datetime
+from functools import wraps
 from pathlib import Path
 
+import pandas as pd
+from flask import Flask, abort, flash, redirect, render_template, request, session, url_for
+from flask_login import (
+    LoginManager,
+    UserMixin,
+    current_user,
+    login_required,
+    login_user,
+    logout_user,
+)
+from flask_wtf import FlaskForm, CSRFProtect
+from werkzeug.security import check_password_hash
+from wtforms import PasswordField, StringField, SubmitField
+from wtforms.validators import DataRequired
+
 app = Flask(__name__)
-app.secret_key = "feuerwehr-inventar-geheim"
+
+# WICHTIG: SECRET_KEY nicht mehr fest im Code speichern.
+# Lokal vor dem Start setzen, z. B. in PowerShell:
+# $env:SECRET_KEY="ein-langer-geheimer-zufaelliger-wert"
+app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY")
+if not app.config["SECRET_KEY"]:
+    raise ValueError("SECRET_KEY ist nicht gesetzt. Bitte vor dem Start als Umgebungsvariable setzen.")
+
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
+csrf = CSRFProtect(app)
+# Lokal auf False lassen. Für Render später SESSION_COOKIE_SECURE=true setzen.
+app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "false").lower() == "true"
 
 BASIS_ORDNER = Path(__file__).resolve().parent
 DATENBANK = BASIS_ORDNER / "inventar.db"
+
+login_manager = LoginManager()
+login_manager.login_view = "login"
+login_manager.login_message = "Bitte melde dich zuerst an."
+login_manager.login_message_category = "warning"
+login_manager.init_app(app)
+
+
+class User(UserMixin):
+    def __init__(self, id, username, password_hash, role, is_active):
+        self.id = str(id)
+        self.username = username
+        self.password_hash = password_hash
+        self.role = role
+        self.active_flag = bool(is_active)
+
+    @property
+    def is_active(self):
+        return self.active_flag
+
+
+def hole_db_verbindung():
+    verbindung = sqlite3.connect(DATENBANK)
+    verbindung.row_factory = sqlite3.Row
+    return verbindung
+
+
+def lade_user_nach_id(user_id):
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+    cursor.execute(
+        "SELECT id, username, password_hash, role, is_active FROM users WHERE id = ?",
+        (user_id,)
+    )
+    daten = cursor.fetchone()
+    verbindung.close()
+
+    if not daten:
+        return None
+
+    return User(
+        daten["id"],
+        daten["username"],
+        daten["password_hash"],
+        daten["role"],
+        daten["is_active"],
+    )
+
+
+def lade_user_nach_username(username):
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+    cursor.execute(
+        "SELECT id, username, password_hash, role, is_active FROM users WHERE username = ?",
+        (username,)
+    )
+    daten = cursor.fetchone()
+    verbindung.close()
+
+    if not daten:
+        return None
+
+    return User(
+        daten["id"],
+        daten["username"],
+        daten["password_hash"],
+        daten["role"],
+        daten["is_active"],
+    )
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return lade_user_nach_id(user_id)
+
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return login_manager.unauthorized()
+
+        if current_user.role != "admin":
+            abort(403)
+
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+class LoginForm(FlaskForm):
+    username = StringField("Benutzername", validators=[DataRequired()])
+    password = PasswordField("Passwort", validators=[DataRequired()])
+    submit = SubmitField("Anmelden")
 
 
 def lade_geraete_aus_db():
@@ -38,7 +160,40 @@ def lade_fahrzeugdaten(schluessel):
     verbindung.close()
     return fahrzeugdaten
 
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for("startseite"))
+
+    form = LoginForm()
+
+    if form.validate_on_submit():
+        username = form.username.data.strip()
+        password = form.password.data
+
+        user = lade_user_nach_username(username)
+
+        if user and check_password_hash(user.password_hash, password):
+            login_user(user)
+            flash("Erfolgreich angemeldet.", "success")
+            return redirect(url_for("startseite"))
+
+        flash("Benutzername oder Passwort ist falsch.", "danger")
+
+    return render_template("login.html", form=form)
+
+
+@app.route("/logout", methods=["POST"])
+@login_required
+def logout():
+    logout_user()
+    flash("Du wurdest abgemeldet.", "info")
+    return redirect(url_for("login"))
+
+
 @app.route("/")
+@login_required
 def startseite():
     df = lade_geraete_aus_db()
 
@@ -72,6 +227,7 @@ def startseite():
     )
 
 @app.route("/geraete")
+@login_required
 def geraete():
     df = lade_geraete_aus_db()
 
@@ -115,6 +271,7 @@ def geraete():
 
 
 @app.route("/prueftermine")
+@login_required
 def prueftermine():
     df = lade_geraete_aus_db()
 
@@ -176,6 +333,7 @@ def prueftermine():
 
 
 @app.route("/fahrzeug/<name>")
+@login_required
 def fahrzeug(name):
     df = lade_geraete_aus_db()
 
@@ -208,10 +366,13 @@ def fahrzeug(name):
 
 
 @app.route("/kleidung")
+@login_required
 def kleidung():
     return "<h1>Kleidung folgt später</h1>"
 
 @app.route("/geraet/neu", methods=["GET", "POST"])
+@login_required
+@admin_required
 def geraet_neu():
     fahrzeuge = [
         "TLF",
@@ -297,6 +458,8 @@ def geraet_neu():
     )
 
 @app.route("/geraet/<int:id>/bearbeiten", methods=["GET", "POST"])
+@login_required
+@admin_required
 def geraet_bearbeiten(id):
     fahrzeuge = [
         "TLF",
@@ -391,6 +554,7 @@ def geraet_bearbeiten(id):
     )
 
 @app.route("/geraet/<int:id>")
+@login_required
 def geraet_detail(id):
     verbindung = sqlite3.connect(DATENBANK)
     verbindung.row_factory = sqlite3.Row
@@ -418,6 +582,7 @@ def geraet_detail(id):
         historie=historie
     )
 @app.route("/pruefauftrag")
+@login_required
 def pruefauftrag():
     verbindung = sqlite3.connect(DATENBANK)
     df = pd.read_sql_query(
@@ -430,9 +595,10 @@ def pruefauftrag():
 
     return render_template("pruefauftrag.html", daten=daten)
 
-from datetime import datetime
 
 @app.route("/geraet/<int:id>/in_pruefung")
+@login_required
+@admin_required
 def geraet_in_pruefung(id):
     verbindung = sqlite3.connect(DATENBANK)
     cursor = verbindung.cursor()
@@ -452,6 +618,8 @@ def geraet_in_pruefung(id):
     return redirect(url_for("prueftermine"))
 
 @app.route("/geraet/<int:id>/pruefung_abschliessen", methods=["GET", "POST"])
+@login_required
+@admin_required
 def geraet_pruefung_abschliessen(id):
     verbindung = sqlite3.connect(DATENBANK)
     verbindung.row_factory = sqlite3.Row
@@ -518,6 +686,7 @@ def geraet_pruefung_abschliessen(id):
         pruefstellen=pruefstellen
     )
 @app.route("/barcode_suche")
+@login_required
 def barcode_suche():
     barcode = request.args.get("barcode", "").strip()
 
@@ -536,6 +705,7 @@ def barcode_suche():
     return render_template("barcode_suche.html", barcode=barcode, geraet=gefundenes_geraet)
 
 @app.route("/barcode_sammeln", methods=["GET", "POST"])
+@login_required
 def barcode_sammeln():
     if "barcode_liste" not in session:
         session["barcode_liste"] = []
@@ -588,6 +758,7 @@ def barcode_sammeln():
     )
 
 @app.route("/barcode_sammeln/loeschen/<int:id>")
+@login_required
 def barcode_sammeln_loeschen(id):
     if "barcode_liste" in session:
         session["barcode_liste"] = [
@@ -600,6 +771,8 @@ def barcode_sammeln_loeschen(id):
 
 
 @app.route("/barcode_sammeln/alle_in_pruefung", methods=["POST"])
+@login_required
+@admin_required
 def barcode_sammeln_alle_in_pruefung():
     if "barcode_liste" not in session or not session["barcode_liste"]:
         return redirect(url_for("barcode_sammeln"))
@@ -630,12 +803,15 @@ def barcode_sammeln_alle_in_pruefung():
 
 
 @app.route("/barcode_sammeln/leeren")
+@login_required
 def barcode_sammeln_leeren():
     session["barcode_liste"] = []
     session.modified = True
     return redirect(url_for("barcode_sammeln"))
 
 @app.route("/pruefstellen", methods=["GET", "POST"])
+@login_required
+@admin_required
 def pruefstellen_verwalten():
     verbindung = sqlite3.connect(DATENBANK)
     verbindung.row_factory = sqlite3.Row
@@ -665,6 +841,8 @@ def pruefstellen_verwalten():
     )
 
 @app.route("/fahrzeug/<schluessel>/bearbeiten", methods=["GET", "POST"])
+@login_required
+@admin_required
 def fahrzeug_bearbeiten(schluessel):
     verbindung = sqlite3.connect(DATENBANK)
     verbindung.row_factory = sqlite3.Row
