@@ -116,7 +116,7 @@ def admin_required(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated:
-            return login_manager.unauthorized()
+        return login_manager.unauthorized()
 
         if current_user.role != "admin":
             abort(403)
@@ -174,7 +174,7 @@ def login():
 
         user = lade_user_nach_username(username)
 
-        if user and check_password_hash(user.password_hash, password):
+    if user and check_password_hash(user.password_hash, password):
             login_user(user)
             flash("Erfolgreich angemeldet.", "success")
             return redirect(url_for("startseite"))
