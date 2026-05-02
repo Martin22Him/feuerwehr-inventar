@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Login – Feuerwehr Inventar</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f8;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .login-box {
+            background: white;
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+            width: 100%;
+            max-width: 380px;
+        }
+
+        h1 {
+            margin-top: 0;
+            text-align: center;
+            color: #b71c1c;
+        }
+
+        label {
+            display: block;
+            margin-top: 16px;
+            margin-bottom: 6px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            box-sizing: border-box;
+        }
+
+        button {
+            width: 100%;
+            margin-top: 20px;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            background: #c62828;
+            color: white;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #a91f1f;
+        }
+
+        .flash {
+            margin-top: 12px;
+            padding: 10px;
+            border-radius: 8px;
+            background: #fbe9e7;
+            color: #b71c1c;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-box">
+        <h1>Feuerwehr Inventar</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="flash">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="post">
+            {{ form.hidden_tag() }}
+
+            <label for="username">Benutzername</label>
+            {{ form.username(id="username") }}
+
+            <label for="password">Passwort</label>
+            {{ form.password(id="password") }}
+
+            <button type="submit">Anmelden</button>
+        </form>
+    </div>
+</body>
+</html>

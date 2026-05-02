@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Prüftermine{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Prüftermine</h2>
+
+    <form method="get">
+        <input type="text" name="suche" placeholder="Suche..." value="{{ suche }}">
+
+        <select name="fahrzeug">
+            <option value="">Alle Fahrzeuge</option>
+            {% for f in fahrzeuge %}
+                <option value="{{ f }}" {% if f == fahrzeug %}selected{% endif %}>{{ f }}</option>
+            {% endfor %}
+        </select>
+
+        <select name="kategorie">
+            <option value="">Alle Kategorien</option>
+            {% for k in kategorien %}
+                <option value="{{ k }}" {% if k == kategorie %}selected{% endif %}>{{ k }}</option>
+            {% endfor %}
+        </select>
+
+        <button type="submit">Filtern</button>
+    </form>
+</div>
+
+<div class="box">
+    <div class="table-wrapper">
+        <table class="inventar-tabelle">
+            <tr>
+                <th>Interne Nummer</th>
+                <th>Barcode</th>
+                <th>Name</th>
+                <th>Hersteller</th>
+                <th>Kategorie</th>
+                <th>Fahrzeug</th>
+                <th>Fachnummer</th>
+                <th>Prüfdatum</th>
+                <th>Ablaufdatum</th>
+                <th>Prüfstatus</th>
+                <th>Details</th>
+                <th>Aktion</th>
+            </tr>
+
+            {% for item in daten %}
+            <tr class="{{ 'status-' ~ item['statusfarbe'] if item['statusfarbe'] != 'normal' else '' }}">
+            <tr>
+                <td>{{ item["interne_nummer"] }}</td>
+                <td>{{ item["barcode"] }}</td>
+                <td>{{ item["name"] }}</td>
+                <td>{{ item["hersteller"] }}</td>
+                <td>{{ item["kategorie"] }}</td>
+                <td>{{ item["fahrzeug"] }}</td>
+                <td>{{ item["fachnummer"] }}</td>
+                <td>{{ item["pruefdatum"] }}</td>
+                <td>{{ item["ablaufdatum"] }}</td>
+                <td>
+    {% if item["pruefstatus"] == "in Prüfung" %}
+        <strong style="color: #0d6efd;">in Prüfung</strong>
+    {% else %}
+        {{ item["pruefstatus"] }}
+    {% endif %}
+</td>
+                <td>
+                    <a href="/geraet/{{ item['id'] }}">Details</a>
+                </td>
+                <td>
+                    {% if item["pruefstatus"] != "in Prüfung" %}
+                        <a href="/geraet/{{ item['id'] }}/in_pruefung">In Prüfung setzen</a>
+                    {% else %}
+                        <span style="color: gray;">läuft bereits</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+
+{% endblock %}

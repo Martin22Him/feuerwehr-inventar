@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block title %}Prüfung abschließen{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Prüfung abschließen</h2>
+    <p>
+        Gerät: <strong>{{ geraet["name"] }}</strong><br>
+        Interne Nummer: <strong>{{ geraet["interne_nummer"] }}</strong>
+    </p>
+</div>
+
+<div class="box">
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <p>
+            <label>Neues Prüfdatum:</label><br>
+            <input type="text" name="pruefdatum" placeholder="YYYY-MM-DD" required>
+        </p>
+
+        <p>
+            <label>Neues Ablaufdatum:</label><br>
+            <input type="text" name="ablaufdatum" placeholder="YYYY-MM-DD" required>
+        </p>
+
+        <p>
+    <label>Prüfstelle:</label><br>
+    <select name="pruefstelle">
+        <option value="">Bitte auswählen</option>
+        {% for stelle in pruefstellen %}
+            <option value="{{ stelle }}" {% if geraet['pruefstelle'] == stelle %}selected{% endif %}>
+                {{ stelle }}
+            </option>
+        {% endfor %}
+    </select>
+</p>
+
+        <p>
+            <label>Bemerkung (optional):</label><br>
+            <textarea name="bemerkung" rows="3"></textarea>
+        </p>
+
+        <p>
+            <button type="submit">Prüfung abschließen</button>
+        </p>
+    </form>
+</div>
+
+{% endblock %}

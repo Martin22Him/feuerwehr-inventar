@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block title %}Gerät bearbeiten{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Gerät bearbeiten</h2>
+
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <p>
+            <label>Interne Nummer:</label><br>
+            <input type="text" name="interne_nummer" value="{{ geraet['interne_nummer'] }}" required>
+        </p>
+
+        <p>
+            <label>Name:</label><br>
+            <input type="text" name="name" value="{{ geraet['name'] }}" required>
+        </p>
+
+        <p>
+            <label>Kategorie:</label><br>
+            <select name="kategorie" required>
+                <option value="">Bitte auswählen</option>
+                {% for kategorie in kategorien %}
+                    <option value="{{ kategorie }}" {% if geraet['kategorie'] == kategorie %}selected{% endif %}>
+                        {{ kategorie }}
+                    </option>
+                {% endfor %}
+            </select>
+        </p>
+
+        <p>
+            <label>Fahrzeug / Bereich:</label><br>
+            <select name="fahrzeug" id="fahrzeug" required onchange="updateFachnummern()">
+                <option value="">Bitte auswählen</option>
+                {% for fahrzeug in fahrzeuge %}
+                    <option value="{{ fahrzeug }}" {% if geraet['fahrzeug'] == fahrzeug %}selected{% endif %}>
+                        {{ fahrzeug }}
+                    </option>
+                {% endfor %}
+            </select>
+        </p>
+
+        <p>
+            <label>Fachnummer:</label><br>
+            <select name="fachnummer" id="fachnummer" required></select>
+        </p>
+
+        <p>
+            <label>Prüfdatum:</label><br>
+            <input type="text" name="pruefdatum" value="{{ geraet['pruefdatum'] }}" placeholder="YYYY-MM-DD">
+        </p>
+
+        <p>
+            <label>Ablaufdatum:</label><br>
+            <input type="text" name="ablaufdatum" value="{{ geraet['ablaufdatum'] }}" placeholder="YYYY-MM-DD">
+        </p>
+
+        <p>
+            <label>Anzahl:</label><br>
+            <input type="number" name="anzahl" value="{{ geraet['anzahl'] }}" min="1">
+        </p>
+
+        <p>
+            <label>Bemerkung:</label><br>
+            <textarea name="bemerkung" rows="3">{{ geraet['bemerkung'] }}</textarea>
+        </p>
+
+        <p>
+            <label>Hersteller:</label><br>
+            <input type="text" name="hersteller" value="{{ geraet['hersteller'] }}">
+        </p>
+
+        <p>
+            <label>Barcode:</label><br>
+            <input type="text" name="barcode" value="{{ geraet['barcode'] }}">
+        </p>
+
+        <p>
+            <button type="submit">Änderungen speichern</button>
+        </p>
+    </form>
+</div>
+
+<script>
+    const fachnummernDaten = {{ fachnummern | tojson }};
+    const aktuelleFachnummer = "{{ geraet['fachnummer'] }}";
+
+    function updateFachnummern() {
+        const fahrzeugSelect = document.getElementById("fahrzeug");
+        const fachnummerSelect = document.getElementById("fachnummer");
+        const gewaehlt = fahrzeugSelect.value;
+
+        fachnummerSelect.innerHTML = "";
+
+        if (!gewaehlt || !fachnummernDaten[gewaehlt]) {
+            const option = document.createElement("option");
+            option.value = "";
+            option.text = "Bitte zuerst Fahrzeug wählen";
+            fachnummerSelect.appendChild(option);
+            return;
+        }
+
+        const ersteOption = document.createElement("option");
+        ersteOption.value = "";
+        ersteOption.text = "Bitte auswählen";
+        fachnummerSelect.appendChild(ersteOption);
+
+        fachnummernDaten[gewaehlt].forEach(function(fach) {
+            const option = document.createElement("option");
+            option.value = fach;
+            option.text = fach;
+
+            if (fach === aktuelleFachnummer) {
+                option.selected = true;
+            }
+
+            fachnummerSelect.appendChild(option);
+        });
+    }
+
+    window.onload = function() {
+        updateFachnummern();
+    };
+</script>
+
+{% endblock %}

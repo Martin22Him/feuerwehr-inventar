@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Fahrzeuginfos bearbeiten{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Fahrzeuginfos bearbeiten</h2>
+    <p><strong>{{ fahrzeugdaten["name"] }}</strong></p>
+</div>
+
+<div class="box">
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {% if schluessel in ["tlf", "lf"] %}
+            <p>
+                <label>TÜV-Termin:</label><br>
+                <input type="text" name="tuev_termin" value="{{ fahrzeugdaten['tuev_termin'] or '' }}" placeholder="z.B. 2026-05-01">
+            </p>
+
+            <p>
+                <label>SP-Termin:</label><br>
+                <input type="text" name="sp_termin" value="{{ fahrzeugdaten['sp_termin'] or '' }}" placeholder="z.B. 2026-06-01">
+            </p>
+
+            <p>
+                <label>Kennzeichen:</label><br>
+                <input type="text" name="kennzeichen" value="{{ fahrzeugdaten['kennzeichen'] or '' }}">
+            </p>
+        {% endif %}
+
+        {% if schluessel == "schlauchanhaenger" %}
+            <p>
+                <label>Schlauchwechsel durchgeführt:</label><br>
+                <input type="text" name="schlauchwechsel" value="{{ fahrzeugdaten['schlauchwechsel'] or '' }}" placeholder="z.B. 2026-04-20">
+            </p>
+        {% endif %}
+
+        <p>
+            <button type="submit">Speichern</button>
+        </p>
+    </form>
+</div>
+
+{% endblock %}

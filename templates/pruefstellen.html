@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Prüfstellen verwalten{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Prüfstellen verwalten</h2>
+    <p>Hier können Prüfstellen angezeigt und neue Prüfstellen hinzugefügt werden.</p>
+</div>
+
+<div class="box">
+    <h3>Neue Prüfstelle hinzufügen</h3>
+
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <p>
+            <label>Name der Prüfstelle:</label><br>
+            <input type="text" name="name" required>
+            <button type="submit">Hinzufügen</button>
+        </p>
+    </form>
+
+    {% if fehlermeldung %}
+        <p style="color: red;"><strong>{{ fehlermeldung }}</strong></p>
+    {% endif %}
+</div>
+
+<div class="box">
+    <h3>Vorhandene Prüfstellen</h3>
+
+    {% if pruefstellen %}
+        <div class="table-wrapper">
+            <table class="inventar-tabelle">
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                </tr>
+
+                {% for stelle in pruefstellen %}
+                <tr>
+                    <td>{{ stelle["id"] }}</td>
+                    <td>{{ stelle["name"] }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    {% else %}
+        <p>Noch keine Prüfstellen vorhanden.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

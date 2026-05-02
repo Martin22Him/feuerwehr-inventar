@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block title %}Neues Gerät{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Neues Gerät hinzufügen</h2>
+
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <p>
+            <label>Interne Nummer:</label><br>
+            <input type="text" name="interne_nummer" required>
+        </p>
+
+        <p>
+            <label>Name:</label><br>
+            <input type="text" name="name" required>
+        </p>
+
+        <p>
+            <label>Kategorie:</label><br>
+            <select name="kategorie" required>
+                <option value="">Bitte auswählen</option>
+                {% for kategorie in kategorien %}
+                    <option value="{{ kategorie }}">{{ kategorie }}</option>
+                {% endfor %}
+            </select>
+        </p>
+
+        <p>
+            <label>Fahrzeug / Bereich:</label><br>
+            <select name="fahrzeug" id="fahrzeug" required onchange="updateFachnummern()">
+                <option value="">Bitte auswählen</option>
+                {% for fahrzeug in fahrzeuge %}
+                    <option value="{{ fahrzeug }}">{{ fahrzeug }}</option>
+                {% endfor %}
+            </select>
+        </p>
+
+        <p>
+            <label>Fachnummer:</label><br>
+            <select name="fachnummer" id="fachnummer" required>
+                <option value="">Bitte zuerst Fahrzeug wählen</option>
+            </select>
+        </p>
+
+        <p>
+            <label>Prüfdatum:</label><br>
+            <input type="text" name="pruefdatum" placeholder="YYYY-MM-DD">
+        </p>
+
+        <p>
+            <label>Ablaufdatum:</label><br>
+            <input type="text" name="ablaufdatum" placeholder="YYYY-MM-DD">
+        </p>
+
+        <p>
+            <label>Anzahl:</label><br>
+            <input type="number" name="anzahl" value="1" min="1">
+        </p>
+
+        <p>
+            <label>Bemerkung:</label><br>
+            <textarea name="bemerkung" rows="3"></textarea>
+        </p>
+
+        <p>
+            <label>Hersteller:</label><br>
+            <input type="text" name="hersteller">
+        </p>
+
+        <p>
+            <label>Barcode:</label><br>
+            <input type="text" name="barcode">
+        </p>
+
+        <p>
+            <button type="submit">Speichern</button>
+        </p>
+    </form>
+</div>
+
+<script>
+    const fachnummernDaten = {{ fachnummern | tojson }};
+
+    function updateFachnummern() {
+        const fahrzeugSelect = document.getElementById("fahrzeug");
+        const fachnummerSelect = document.getElementById("fachnummer");
+        const gewaehlt = fahrzeugSelect.value;
+
+        fachnummerSelect.innerHTML = "";
+
+        if (!gewaehlt || !fachnummernDaten[gewaehlt]) {
+            const option = document.createElement("option");
+            option.value = "";
+            option.text = "Bitte zuerst Fahrzeug wählen";
+            fachnummerSelect.appendChild(option);
+            return;
+        }
+
+        const ersteOption = document.createElement("option");
+        ersteOption.value = "";
+        ersteOption.text = "Bitte auswählen";
+        fachnummerSelect.appendChild(ersteOption);
+
+        fachnummernDaten[gewaehlt].forEach(function(fach) {
+            const option = document.createElement("option");
+            option.value = fach;
+            option.text = fach;
+            fachnummerSelect.appendChild(option);
+        });
+    }
+</script>
+
+{% endblock %}
