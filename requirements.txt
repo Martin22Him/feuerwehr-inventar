@@ -5,3 +5,5 @@ gunicorn==23.0.0
 Flask-Login
 Flask-WTF
 email-validator
+SQLAlchemy
+psycopg[binary]
