@@ -37,6 +37,72 @@ app.config["SESSION_COOKIE_SECURE"] = os.environ.get("SESSION_COOKIE_SECURE", "f
 BASIS_ORDNER = Path(__file__).resolve().parent
 DATENBANK = BASIS_ORDNER / "inventar.db"
 
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+USING_POSTGRES = bool(DATABASE_URL)
+
+
+def hole_db_verbindung():
+    """
+    Lokal ohne DATABASE_URL: SQLite-Datei inventar.db.
+    Online mit DATABASE_URL: PostgreSQL, z. B. Neon/Supabase.
+    """
+    if USING_POSTGRES:
+        import psycopg
+        from psycopg.rows import dict_row
+
+        return psycopg.connect(DATABASE_URL, row_factory=dict_row)
+
+    verbindung = sqlite3.connect(DATENBANK)
+    verbindung.row_factory = sqlite3.Row
+    return verbindung
+
+
+def db_execute(cursor, sql, params=()):
+    """
+    Einheitliche SQL-Ausführung für SQLite und PostgreSQL.
+    Der bestehende Code nutzt ? als Platzhalter.
+    Für PostgreSQL werden diese automatisch zu %s umgewandelt.
+    """
+    if params is None:
+        params = ()
+
+    if USING_POSTGRES:
+        sql = sql.replace("?", "%s")
+
+    return cursor.execute(sql, params)
+
+
+def row_get(row, key, index=0):
+    """Wert aus sqlite3.Row, Tupel oder psycopg dict_row lesen."""
+    if row is None:
+        return None
+
+    try:
+        return row[key]
+    except (KeyError, TypeError, IndexError):
+        return row[index]
+
+
+def lese_dataframe(sql, params=()):
+    """SQL-Abfrage als DataFrame, kompatibel mit SQLite und PostgreSQL."""
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+    db_execute(cursor, sql, params)
+
+    daten = cursor.fetchall()
+    spalten = [beschreibung[0] for beschreibung in cursor.description] if cursor.description else []
+
+    verbindung.close()
+
+    if not daten:
+        return pd.DataFrame(columns=spalten)
+
+    if USING_POSTGRES:
+        return pd.DataFrame(daten)
+
+    return pd.DataFrame([dict(zeile) for zeile in daten])
+
+
 login_manager = LoginManager()
 login_manager.login_view = "login"
 login_manager.login_message = "Bitte melde dich zuerst an."
@@ -57,16 +123,10 @@ class User(UserMixin):
         return self.active_flag
 
 
-def hole_db_verbindung():
-    verbindung = sqlite3.connect(DATENBANK)
-    verbindung.row_factory = sqlite3.Row
-    return verbindung
-
-
 def lade_user_nach_id(user_id):
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
-    cursor.execute(
+    db_execute(cursor, 
         "SELECT id, username, password_hash, role, is_active FROM users WHERE id = ?",
         (user_id,)
     )
@@ -88,7 +148,7 @@ def lade_user_nach_id(user_id):
 def lade_user_nach_username(username):
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
-    cursor.execute(
+    db_execute(cursor, 
         "SELECT id, username, password_hash, role, is_active FROM users WHERE username = ?",
         (username,)
     )
@@ -106,32 +166,141 @@ def lade_user_nach_username(username):
         daten["is_active"],
     )
 
-def initialisiere_benutzer_tabelle():
+def initialisiere_datenbank():
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
 
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            username TEXT NOT NULL UNIQUE,
-            password_hash TEXT NOT NULL,
-            role TEXT NOT NULL DEFAULT 'user',
-            is_active INTEGER NOT NULL DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
+    if USING_POSTGRES:
+        db_execute(cursor, """
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'user',
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        db_execute(cursor, """
+            CREATE TABLE IF NOT EXISTS geraete (
+                id SERIAL PRIMARY KEY,
+                interne_nummer TEXT,
+                name TEXT,
+                kategorie TEXT,
+                fahrzeug TEXT,
+                fachnummer TEXT,
+                pruefdatum TEXT,
+                ablaufdatum TEXT,
+                anzahl INTEGER,
+                bemerkung TEXT,
+                hersteller TEXT,
+                barcode TEXT,
+                pruefstatus TEXT DEFAULT 'frei',
+                pruefauftrag_datum TEXT,
+                pruefstelle TEXT
+            )
+        """)
+
+        db_execute(cursor, """
+            CREATE TABLE IF NOT EXISTS pruefstellen (
+                id SERIAL PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE
+            )
+        """)
+
+        db_execute(cursor, """
+            CREATE TABLE IF NOT EXISTS fahrzeuge (
+                schluessel TEXT PRIMARY KEY,
+                tuev_termin TEXT,
+                sp_termin TEXT,
+                kennzeichen TEXT,
+                schlauchwechsel TEXT
+            )
+        """)
+
+        db_execute(cursor, """
+            CREATE TABLE IF NOT EXISTS pruefhistorie (
+                id SERIAL PRIMARY KEY,
+                geraet_id INTEGER,
+                pruefdatum TEXT,
+                ablaufdatum TEXT,
+                pruefstelle TEXT,
+                bemerkung TEXT
+            )
+        """)
+    else:
+        db_execute(cursor, """
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL UNIQUE,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'user',
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+
+        db_execute(cursor, """
+            CREATE TABLE IF NOT EXISTS geraete (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                interne_nummer TEXT,
+                name TEXT,
+                kategorie TEXT,
+                fahrzeug TEXT,
+                fachnummer TEXT,
+                pruefdatum TEXT,
+                ablaufdatum TEXT,
+                anzahl INTEGER,
+                bemerkung TEXT,
+                hersteller TEXT,
+                barcode TEXT,
+                pruefstatus TEXT DEFAULT 'frei',
+                pruefauftrag_datum TEXT,
+                pruefstelle TEXT
+            )
+        """)
+
+        db_execute(cursor, """
+            CREATE TABLE IF NOT EXISTS pruefstellen (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE
+            )
+        """)
+
+        db_execute(cursor, """
+            CREATE TABLE IF NOT EXISTS fahrzeuge (
+                schluessel TEXT PRIMARY KEY,
+                tuev_termin TEXT,
+                sp_termin TEXT,
+                kennzeichen TEXT,
+                schlauchwechsel TEXT
+            )
+        """)
+
+        db_execute(cursor, """
+            CREATE TABLE IF NOT EXISTS pruefhistorie (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                geraet_id INTEGER,
+                pruefdatum TEXT,
+                ablaufdatum TEXT,
+                pruefstelle TEXT,
+                bemerkung TEXT
+            )
+        """)
 
     admin_username = os.environ.get("ADMIN_USERNAME")
     admin_password = os.environ.get("ADMIN_PASSWORD")
 
     if admin_username and admin_password:
-        cursor.execute("SELECT id FROM users WHERE username = ?", (admin_username,))
+        db_execute(cursor, "SELECT id FROM users WHERE username = ?", (admin_username,))
         admin_vorhanden = cursor.fetchone()
 
         if not admin_vorhanden:
             from werkzeug.security import generate_password_hash
 
-            cursor.execute(
+            db_execute(
+                cursor,
                 "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)",
                 (admin_username, generate_password_hash(admin_password), "admin")
             )
@@ -139,7 +308,8 @@ def initialisiere_benutzer_tabelle():
     verbindung.commit()
     verbindung.close()
 
-initialisiere_benutzer_tabelle()
+
+initialisiere_datenbank()
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -167,28 +337,24 @@ class LoginForm(FlaskForm):
 
 
 def lade_geraete_aus_db():
-    verbindung = sqlite3.connect(DATENBANK)
-    df = pd.read_sql_query("SELECT * FROM geraete", verbindung)
-    verbindung.close()
-    return df
+    return lese_dataframe("SELECT * FROM geraete")
 
 def lade_pruefstellen():
-    verbindung = sqlite3.connect(DATENBANK)
+    verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
 
-    cursor.execute("SELECT name FROM pruefstellen ORDER BY name ASC")
+    db_execute(cursor, "SELECT name FROM pruefstellen ORDER BY name ASC")
     daten = cursor.fetchall()
 
     verbindung.close()
 
-    return [eintrag[0] for eintrag in daten]
+    return [row_get(eintrag, "name", 0) for eintrag in daten]
 
 def lade_fahrzeugdaten(schluessel):
-    verbindung = sqlite3.connect(DATENBANK)
-    verbindung.row_factory = sqlite3.Row
+    verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
 
-    cursor.execute("SELECT * FROM fahrzeuge WHERE schluessel = ?", (schluessel,))
+    db_execute(cursor, "SELECT * FROM fahrzeuge WHERE schluessel = ?", (schluessel,))
     fahrzeugdaten = cursor.fetchone()
 
     verbindung.close()
@@ -447,10 +613,10 @@ def geraet_neu():
         except ValueError:
             anzahl = 1
 
-        verbindung = sqlite3.connect(DATENBANK)
+        verbindung = hole_db_verbindung()
         cursor = verbindung.cursor()
 
-        cursor.execute("""
+        db_execute(cursor, """
             INSERT INTO geraete (
                 interne_nummer,
                 name,
@@ -516,8 +682,7 @@ def geraet_bearbeiten(id):
         "Lager": ["Regal"]
     }
 
-    verbindung = sqlite3.connect(DATENBANK)
-    verbindung.row_factory = sqlite3.Row
+    verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
 
     if request.method == "POST":
@@ -538,7 +703,7 @@ def geraet_bearbeiten(id):
         except ValueError:
             anzahl = 1
 
-        cursor.execute("""
+        db_execute(cursor, """
             UPDATE geraete
             SET interne_nummer = ?,
                 name = ?,
@@ -572,7 +737,7 @@ def geraet_bearbeiten(id):
 
         return redirect(url_for("geraete"))
 
-    cursor.execute("SELECT * FROM geraete WHERE id = ?", (id,))
+    db_execute(cursor, "SELECT * FROM geraete WHERE id = ?", (id,))
     geraet = cursor.fetchone()
     verbindung.close()
 
@@ -590,18 +755,17 @@ def geraet_bearbeiten(id):
 @app.route("/geraet/<int:id>")
 @login_required
 def geraet_detail(id):
-    verbindung = sqlite3.connect(DATENBANK)
-    verbindung.row_factory = sqlite3.Row
+    verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
 
-    cursor.execute("SELECT * FROM geraete WHERE id = ?", (id,))
+    db_execute(cursor, "SELECT * FROM geraete WHERE id = ?", (id,))
     geraet = cursor.fetchone()
 
     if geraet is None:
         verbindung.close()
         return f"Gerät mit ID {id} nicht gefunden."
 
-    cursor.execute("""
+    db_execute(cursor, """
         SELECT * FROM pruefhistorie
         WHERE geraet_id = ?
         ORDER BY pruefdatum DESC, id DESC
@@ -618,12 +782,7 @@ def geraet_detail(id):
 @app.route("/pruefauftrag")
 @login_required
 def pruefauftrag():
-    verbindung = sqlite3.connect(DATENBANK)
-    df = pd.read_sql_query(
-        "SELECT * FROM geraete WHERE pruefstatus = 'in Prüfung'",
-        verbindung
-    )
-    verbindung.close()
+    df = lese_dataframe("SELECT * FROM geraete WHERE pruefstatus = 'in Prüfung'")
 
     daten = df.to_dict(orient="records")
 
@@ -634,12 +793,12 @@ def pruefauftrag():
 @login_required
 @admin_required
 def geraet_in_pruefung(id):
-    verbindung = sqlite3.connect(DATENBANK)
+    verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
 
     heute = datetime.now().strftime("%Y-%m-%d")
 
-    cursor.execute("""
+    db_execute(cursor, """
         UPDATE geraete
         SET pruefstatus = 'in Prüfung',
             pruefauftrag_datum = ?
@@ -655,11 +814,10 @@ def geraet_in_pruefung(id):
 @login_required
 @admin_required
 def geraet_pruefung_abschliessen(id):
-    verbindung = sqlite3.connect(DATENBANK)
-    verbindung.row_factory = sqlite3.Row
+    verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
 
-    cursor.execute("SELECT * FROM geraete WHERE id = ?", (id,))
+    db_execute(cursor, "SELECT * FROM geraete WHERE id = ?", (id,))
     geraet = cursor.fetchone()
 
     if geraet is None:
@@ -673,7 +831,7 @@ def geraet_pruefung_abschliessen(id):
         bemerkung = request.form.get("bemerkung", "")
 
         # Historie speichern
-        cursor.execute("""
+        db_execute(cursor, """
             INSERT INTO pruefhistorie (
                 geraet_id,
                 pruefdatum,
@@ -691,7 +849,7 @@ def geraet_pruefung_abschliessen(id):
         ))
 
         # Gerät aktualisieren
-        cursor.execute("""
+        db_execute(cursor, """
             UPDATE geraete
             SET pruefstatus = 'frei',
                 pruefdatum = ?,
@@ -727,11 +885,10 @@ def barcode_suche():
     gefundenes_geraet = None
 
     if barcode:
-        verbindung = sqlite3.connect(DATENBANK)
-        verbindung.row_factory = sqlite3.Row
+        verbindung = hole_db_verbindung()
         cursor = verbindung.cursor()
 
-        cursor.execute("SELECT * FROM geraete WHERE barcode = ?", (barcode,))
+        db_execute(cursor, "SELECT * FROM geraete WHERE barcode = ?", (barcode,))
         gefundenes_geraet = cursor.fetchone()
 
         verbindung.close()
@@ -751,11 +908,10 @@ def barcode_sammeln():
         barcode = request.form.get("barcode", "").strip()
 
         if barcode:
-            verbindung = sqlite3.connect(DATENBANK)
-            verbindung.row_factory = sqlite3.Row
+            verbindung = hole_db_verbindung()
             cursor = verbindung.cursor()
 
-            cursor.execute("SELECT * FROM geraete WHERE barcode = ?", (barcode,))
+            db_execute(cursor, "SELECT * FROM geraete WHERE barcode = ?", (barcode,))
             geraet = cursor.fetchone()
 
             verbindung.close()
@@ -813,13 +969,13 @@ def barcode_sammeln_alle_in_pruefung():
 
     pruefstelle = request.form.get("pruefstelle", "").strip()
 
-    verbindung = sqlite3.connect(DATENBANK)
+    verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
 
     heute = datetime.now().strftime("%Y-%m-%d")
 
     for eintrag in session["barcode_liste"]:
-        cursor.execute("""
+        db_execute(cursor, """
             UPDATE geraete
             SET pruefstatus = 'in Prüfung',
                 pruefauftrag_datum = ?,
@@ -847,8 +1003,7 @@ def barcode_sammeln_leeren():
 @login_required
 @admin_required
 def pruefstellen_verwalten():
-    verbindung = sqlite3.connect(DATENBANK)
-    verbindung.row_factory = sqlite3.Row
+    verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
 
     fehlermeldung = ""
@@ -858,12 +1013,13 @@ def pruefstellen_verwalten():
 
         if neue_pruefstelle:
             try:
-                cursor.execute("INSERT INTO pruefstellen (name) VALUES (?)", (neue_pruefstelle,))
+                db_execute(cursor, "INSERT INTO pruefstellen (name) VALUES (?)", (neue_pruefstelle,))
                 verbindung.commit()
-            except sqlite3.IntegrityError:
+            except Exception:
+                verbindung.rollback()
                 fehlermeldung = "Diese Prüfstelle existiert bereits."
 
-    cursor.execute("SELECT * FROM pruefstellen ORDER BY name ASC")
+    db_execute(cursor, "SELECT * FROM pruefstellen ORDER BY name ASC")
     pruefstellen = cursor.fetchall()
 
     verbindung.close()
@@ -878,11 +1034,10 @@ def pruefstellen_verwalten():
 @login_required
 @admin_required
 def fahrzeug_bearbeiten(schluessel):
-    verbindung = sqlite3.connect(DATENBANK)
-    verbindung.row_factory = sqlite3.Row
+    verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
 
-    cursor.execute("SELECT * FROM fahrzeuge WHERE schluessel = ?", (schluessel,))
+    db_execute(cursor, "SELECT * FROM fahrzeuge WHERE schluessel = ?", (schluessel,))
     fahrzeugdaten = cursor.fetchone()
 
     if fahrzeugdaten is None:
@@ -895,7 +1050,7 @@ def fahrzeug_bearbeiten(schluessel):
         kennzeichen = request.form.get("kennzeichen", "")
         schlauchwechsel = request.form.get("schlauchwechsel", "")
 
-        cursor.execute("""
+        db_execute(cursor, """
             UPDATE fahrzeuge
             SET tuev_termin = ?,
                 sp_termin = ?,
