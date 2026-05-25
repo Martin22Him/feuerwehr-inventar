@@ -581,7 +581,7 @@ def kleidung():
 
 @app.route("/geraet/neu", methods=["GET", "POST"])
 @login_required
-@gereatewart_required
+@geraetewart_required
 def geraet_neu():
     fahrzeuge = [
         "TLF",
