@@ -210,6 +210,9 @@
         {% if current_user.role in ["admin", "geraetewart"] %}
         <a href="/pruefstellen" class="nav-button">Prüfstellen</a>
         {% endif %}
+        {% if current_user.role in ["admin", "geraetewart"] %}
+        <a href="/pruefschemata" class="nav-button">Prüfschemata</a>
+        {% endif %}
         {% if current_user.role == "admin" %}
         <a href="/benutzer" class="nav-button">Benutzerverwaltung</a>
         {% endif %}
