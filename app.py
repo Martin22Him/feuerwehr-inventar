@@ -316,18 +316,27 @@ def load_user(user_id):
     return lade_user_nach_id(user_id)
 
 
+def rollen_required(*rollen):
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if not current_user.is_authenticated:
+                return login_manager.unauthorized()
+
+            if current_user.role not in rollen:
+                abort(403)
+
+            return f(*args, **kwargs)
+        return decorated_function
+    return decorator
+
+
 def admin_required(f):
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if not current_user.is_authenticated:
-            return login_manager.unauthorized()
+    return rollen_required("admin")(f)
 
-        if current_user.role != "admin":
-            abort(403)
 
-        return f(*args, **kwargs)
-
-    return decorated_function
+def geraetewart_required(f):
+    return rollen_required("admin", "geraetewart")(f)
 
 
 class LoginForm(FlaskForm):
@@ -572,7 +581,7 @@ def kleidung():
 
 @app.route("/geraet/neu", methods=["GET", "POST"])
 @login_required
-@admin_required
+@gereatewart_required
 def geraet_neu():
     fahrzeuge = [
         "TLF",
@@ -659,7 +668,7 @@ def geraet_neu():
 
 @app.route("/geraet/<int:id>/bearbeiten", methods=["GET", "POST"])
 @login_required
-@admin_required
+@geraetewart_required
 def geraet_bearbeiten(id):
     fahrzeuge = [
         "TLF",
@@ -791,7 +800,7 @@ def pruefauftrag():
 
 @app.route("/geraet/<int:id>/in_pruefung")
 @login_required
-@admin_required
+@geraetewart_required
 def geraet_in_pruefung(id):
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
@@ -812,7 +821,7 @@ def geraet_in_pruefung(id):
 
 @app.route("/geraet/<int:id>/pruefung_abschliessen", methods=["GET", "POST"])
 @login_required
-@admin_required
+@geraetewart_required
 def geraet_pruefung_abschliessen(id):
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
@@ -962,7 +971,7 @@ def barcode_sammeln_loeschen(id):
 
 @app.route("/barcode_sammeln/alle_in_pruefung", methods=["POST"])
 @login_required
-@admin_required
+@geraetewart_required
 def barcode_sammeln_alle_in_pruefung():
     if "barcode_liste" not in session or not session["barcode_liste"]:
         return redirect(url_for("barcode_sammeln"))
@@ -1001,7 +1010,7 @@ def barcode_sammeln_leeren():
 
 @app.route("/pruefstellen", methods=["GET", "POST"])
 @login_required
-@admin_required
+@geraetewart_required
 def pruefstellen_verwalten():
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
@@ -1032,7 +1041,7 @@ def pruefstellen_verwalten():
 
 @app.route("/fahrzeug/<schluessel>/bearbeiten", methods=["GET", "POST"])
 @login_required
-@admin_required
+@geraetewart_required
 def fahrzeug_bearbeiten(schluessel):
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
