@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Prüfschema bearbeiten{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Prüfschema bearbeiten</h2>
+
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <p>
+            <label>Name des Prüfschemas:</label><br>
+            <input type="text" name="name" value="{{ schema['name'] }}" required>
+        </p>
+
+        <p>
+            <label>Kategorie:</label><br>
+            <select name="kategorie" required>
+                {% for kategorie in kategorien %}
+                    <option value="{{ kategorie }}" {% if schema["kategorie"] == kategorie %}selected{% endif %}>
+                        {{ kategorie }}
+                    </option>
+                {% endfor %}
+            </select>
+        </p>
+
+        <p>
+            <label>Beschreibung:</label><br>
+            <textarea name="beschreibung" rows="4">{{ schema["beschreibung"] }}</textarea>
+        </p>
+
+        <p>
+            <label>Aktiv:</label><br>
+            <select name="aktiv">
+                <option value="1" {% if schema["aktiv"] %}selected{% endif %}>Ja</option>
+                <option value="0" {% if not schema["aktiv"] %}selected{% endif %}>Nein</option>
+            </select>
+        </p>
+
+        <p>
+            <button type="submit">Speichern</button>
+            <a href="{{ url_for('pruefschema_detail', id=schema['id']) }}">Abbrechen</a>
+        </p>
+    </form>
+</div>
+
+{% endblock %}

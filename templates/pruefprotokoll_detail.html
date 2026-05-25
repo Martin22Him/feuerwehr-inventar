@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Prüfprotokoll{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Prüfprotokoll</h2>
+
+    <p>
+        <strong>Gerät:</strong> {{ protokoll["geraet_name"] }}<br>
+        <strong>Interne Nummer:</strong> {{ protokoll["interne_nummer"] }}<br>
+        <strong>Barcode:</strong> {{ protokoll["barcode"] }}<br>
+        <strong>Kategorie:</strong> {{ protokoll["kategorie"] }}<br>
+        <strong>Fahrzeug:</strong> {{ protokoll["fahrzeug"] }}<br>
+        <strong>Fachnummer:</strong> {{ protokoll["fachnummer"] }}
+    </p>
+</div>
+
+<div class="box">
+    <h3>Prüfdaten</h3>
+
+    <p>
+        <strong>Prüfschema:</strong> {{ protokoll["schema_name"] }}<br>
+        <strong>Prüfdatum:</strong> {{ protokoll["pruefdatum"] }}<br>
+        <strong>Nächste Prüfung:</strong> {{ protokoll["ablaufdatum"] }}<br>
+        <strong>Prüfstelle:</strong> {{ protokoll["pruefstelle"] }}<br>
+        <strong>Ergebnis:</strong> {{ protokoll["ergebnis"] }}<br>
+        <strong>Bemerkung:</strong> {{ protokoll["bemerkung"] }}
+    </p>
+</div>
+
+<div class="box">
+    <h3>Prüfpunkte</h3>
+
+    {% if pruefpunkte %}
+        <div class="table-wrapper">
+            <table class="inventar-tabelle">
+                <tr>
+                    <th>Prüfpunkt</th>
+                    <th>Status</th>
+                    <th>Bemerkung</th>
+                </tr>
+
+                {% for punkt in pruefpunkte %}
+                <tr>
+                    <td>{{ punkt["pruefpunkt_text"] }}</td>
+                    <td>{{ punkt["status"] }}</td>
+                    <td>{{ punkt["bemerkung"] }}</td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    {% else %}
+        <p>Keine Prüfpunkte gespeichert.</p>
+    {% endif %}
+</div>
+
+<div class="box">
+    <a href="{{ url_for('geraet_detail', id=protokoll['geraet_id']) }}">Zurück zum Gerät</a>
+</div>
+
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+
+{% block title %}Prüfschema Details{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>{{ schema["name"] }}</h2>
+
+    <p><strong>Kategorie:</strong> {{ schema["kategorie"] }}</p>
+    <p><strong>Beschreibung:</strong> {{ schema["beschreibung"] }}</p>
+    <p><strong>Aktiv:</strong> {% if schema["aktiv"] %}Ja{% else %}Nein{% endif %}</p>
+
+    <p>
+        <a href="{{ url_for('pruefschema_bearbeiten', id=schema['id']) }}" class="nav-button" style="display:inline-block; width:auto;">
+            Prüfschema bearbeiten
+        </a>
+
+        <a href="{{ url_for('pruefpunkt_neu', schema_id=schema['id']) }}" class="nav-button" style="display:inline-block; width:auto;">
+            Prüfpunkt hinzufügen
+        </a>
+
+        <a href="{{ url_for('pruefschemata_liste') }}">Zurück</a>
+    </p>
+</div>
+
+<div class="box">
+    <h3>Prüfpunkte</h3>
+
+    <div class="table-wrapper">
+        <table class="inventar-tabelle">
+            <tr>
+                <th>Sortierung</th>
+                <th>Prüfpunkt</th>
+                <th>Hinweis</th>
+                <th>Pflichtfeld</th>
+                <th>Aktionen</th>
+            </tr>
+
+            {% for punkt in pruefpunkte %}
+            <tr>
+                <td>{{ punkt["sortierung"] }}</td>
+                <td>{{ punkt["pruefpunkt"] }}</td>
+                <td>{{ punkt["hinweis"] }}</td>
+                <td>{% if punkt["pflichtfeld"] %}Ja{% else %}Nein{% endif %}</td>
+                <td>
+                    <a href="{{ url_for('pruefpunkt_bearbeiten', id=punkt['id']) }}">Bearbeiten</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+
+{% endblock %}

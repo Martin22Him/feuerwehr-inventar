@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Neues Prüfschema{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Neues Prüfschema anlegen</h2>
+
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <p>
+            <label>Name des Prüfschemas:</label><br>
+            <input type="text" name="name" required>
+        </p>
+
+        <p>
+            <label>Kategorie:</label><br>
+            <select name="kategorie" required>
+                <option value="">Bitte auswählen</option>
+                {% for kategorie in kategorien %}
+                    <option value="{{ kategorie }}">{{ kategorie }}</option>
+                {% endfor %}
+            </select>
+        </p>
+
+        <p>
+            <label>Beschreibung:</label><br>
+            <textarea name="beschreibung" rows="4"></textarea>
+        </p>
+
+        <p>
+            <label>Aktiv:</label><br>
+            <select name="aktiv">
+                <option value="1" selected>Ja</option>
+                <option value="0">Nein</option>
+            </select>
+        </p>
+
+        <p>
+            <button type="submit">Speichern</button>
+            <a href="{{ url_for('pruefschemata_liste') }}">Abbrechen</a>
+        </p>
+    </form>
+</div>
+
+{% endblock %}

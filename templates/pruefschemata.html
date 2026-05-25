@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Prüfschemata{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Prüfschemata</h2>
+
+    <p>
+        <a href="{{ url_for('pruefschema_neu') }}" class="nav-button" style="display:inline-block; width:auto;">
+            Neues Prüfschema
+        </a>
+    </p>
+
+    <div class="table-wrapper">
+        <table class="inventar-tabelle">
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Kategorie</th>
+                <th>Aktiv</th>
+                <th>Aktionen</th>
+            </tr>
+
+            {% for schema in schemata %}
+            <tr>
+                <td>{{ schema["id"] }}</td>
+                <td>{{ schema["name"] }}</td>
+                <td>{{ schema["kategorie"] }}</td>
+                <td>{% if schema["aktiv"] %}Ja{% else %}Nein{% endif %}</td>
+                <td>
+                    <a href="{{ url_for('pruefschema_detail', id=schema['id']) }}">Öffnen</a>
+                    |
+                    <a href="{{ url_for('pruefschema_bearbeiten', id=schema['id']) }}">Bearbeiten</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+
+{% endblock %}

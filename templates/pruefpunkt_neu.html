@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block title %}Neuer Prüfpunkt{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Neuen Prüfpunkt hinzufügen</h2>
+
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <p>
+            <label>Sortierung:</label><br>
+            <input type="number" name="sortierung" value="0">
+        </p>
+
+        <p>
+            <label>Prüfpunkt:</label><br>
+            <input type="text" name="pruefpunkt" required>
+        </p>
+
+        <p>
+            <label>Hinweis:</label><br>
+            <textarea name="hinweis" rows="3"></textarea>
+        </p>
+
+        <p>
+            <label>Pflichtfeld:</label><br>
+            <select name="pflichtfeld">
+                <option value="1" selected>Ja</option>
+                <option value="0">Nein</option>
+            </select>
+        </p>
+
+        <p>
+            <button type="submit">Prüfpunkt speichern</button>
+            <a href="{{ url_for('pruefschema_detail', id=schema_id) }}">Abbrechen</a>
+        </p>
+    </form>
+</div>
+
+{% endblock %}
