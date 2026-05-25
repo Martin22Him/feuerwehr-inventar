@@ -344,6 +344,11 @@ class LoginForm(FlaskForm):
     password = PasswordField("Passwort", validators=[DataRequired()])
     submit = SubmitField("Anmelden")
 
+class BenutzerForm(FlaskForm):
+    username = StringField("Benutzername", validators=[DataRequired()])
+    password = PasswordField("Passwort")
+    role = StringField("Rolle", validators=[DataRequired()])
+    submit = SubmitField("Speichern")
 
 def lade_geraete_aus_db():
     return lese_dataframe("SELECT * FROM geraete")
@@ -400,6 +405,161 @@ def logout():
     flash("Du wurdest abgemeldet.", "info")
     return redirect(url_for("login"))
 
+@app.route("/benutzer")
+@login_required
+@admin_required
+def benutzer_liste():
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    db_execute(cursor, """
+        SELECT id, username, role, is_active, created_at
+        FROM users
+        ORDER BY username ASC
+    """)
+
+    benutzer = cursor.fetchall()
+    verbindung.close()
+
+    return render_template("benutzer.html", benutzer=benutzer)
+
+
+@app.route("/benutzer/neu", methods=["GET", "POST"])
+@login_required
+@admin_required
+def benutzer_neu():
+    form = BenutzerForm()
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "").strip()
+        role = request.form.get("role", "benutzer").strip()
+        is_active = 1 if request.form.get("is_active") == "1" else 0
+
+        if username and password and role in ["admin", "geraetewart", "benutzer"]:
+            from werkzeug.security import generate_password_hash
+
+            verbindung = hole_db_verbindung()
+            cursor = verbindung.cursor()
+
+            try:
+                db_execute(cursor, """
+                    INSERT INTO users (username, password_hash, role, is_active)
+                    VALUES (?, ?, ?, ?)
+                """, (
+                    username,
+                    generate_password_hash(password),
+                    role,
+                    is_active
+                ))
+
+                verbindung.commit()
+                flash("Benutzer wurde angelegt.", "success")
+                return redirect(url_for("benutzer_liste"))
+
+            except Exception:
+                verbindung.rollback()
+                flash("Benutzer konnte nicht angelegt werden. Existiert der Name bereits?", "danger")
+
+            finally:
+                verbindung.close()
+        else:
+            flash("Bitte Benutzername, Passwort und gültige Rolle angeben.", "danger")
+
+    return render_template("benutzer_neu.html", form=form)
+
+
+@app.route("/benutzer/<int:id>/bearbeiten", methods=["GET", "POST"])
+@login_required
+@admin_required
+def benutzer_bearbeiten(id):
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        role = request.form.get("role", "benutzer").strip()
+        is_active = 1 if request.form.get("is_active") == "1" else 0
+
+        if role not in ["admin", "geraetewart", "benutzer"]:
+            verbindung.close()
+            flash("Ungültige Rolle.", "danger")
+            return redirect(url_for("benutzer_bearbeiten", id=id))
+
+        db_execute(cursor, """
+            UPDATE users
+            SET username = ?,
+                role = ?,
+                is_active = ?
+            WHERE id = ?
+        """, (
+            username,
+            role,
+            is_active,
+            id
+        ))
+
+        verbindung.commit()
+        verbindung.close()
+
+        flash("Benutzer wurde aktualisiert.", "success")
+        return redirect(url_for("benutzer_liste"))
+
+    db_execute(cursor, """
+        SELECT id, username, role, is_active, created_at
+        FROM users
+        WHERE id = ?
+    """, (id,))
+
+    benutzer = cursor.fetchone()
+    verbindung.close()
+
+    if not benutzer:
+        return "Benutzer nicht gefunden."
+
+    return render_template("benutzer_bearbeiten.html", benutzer=benutzer)
+
+
+@app.route("/benutzer/<int:id>/passwort", methods=["GET", "POST"])
+@login_required
+@admin_required
+def benutzer_passwort(id):
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    db_execute(cursor, "SELECT id, username FROM users WHERE id = ?", (id,))
+    benutzer = cursor.fetchone()
+
+    if not benutzer:
+        verbindung.close()
+        return "Benutzer nicht gefunden."
+
+    if request.method == "POST":
+        neues_passwort = request.form.get("password", "").strip()
+
+        if neues_passwort:
+            from werkzeug.security import generate_password_hash
+
+            db_execute(cursor, """
+                UPDATE users
+                SET password_hash = ?
+                WHERE id = ?
+            """, (
+                generate_password_hash(neues_passwort),
+                id
+            ))
+
+            verbindung.commit()
+            verbindung.close()
+
+            flash("Passwort wurde neu gesetzt.", "success")
+            return redirect(url_for("benutzer_liste"))
+
+        flash("Bitte ein neues Passwort eingeben.", "danger")
+
+    verbindung.close()
+
+    return render_template("benutzer_passwort.html", benutzer=benutzer)
 
 @app.route("/")
 @login_required
