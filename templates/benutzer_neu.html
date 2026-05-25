@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Neuer Benutzer{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Neuen Benutzer anlegen</h2>
+
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <p>
+            <label>Benutzername:</label><br>
+            <input type="text" name="username" required>
+        </p>
+
+        <p>
+            <label>Passwort:</label><br>
+            <input type="password" name="password" required>
+        </p>
+
+        <p>
+            <label>Rolle:</label><br>
+            <select name="role" required>
+                <option value="benutzer">Benutzer</option>
+                <option value="geraetewart">Gerätewart</option>
+                <option value="admin">Admin</option>
+            </select>
+        </p>
+
+        <p>
+            <label>Aktiv:</label><br>
+            <select name="is_active">
+                <option value="1" selected>Ja</option>
+                <option value="0">Nein</option>
+            </select>
+        </p>
+
+        <p>
+            <button type="submit">Benutzer anlegen</button>
+            <a href="{{ url_for('benutzer_liste') }}">Abbrechen</a>
+        </p>
+    </form>
+</div>
+
+{% endblock %}
