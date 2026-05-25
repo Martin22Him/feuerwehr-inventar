@@ -81,35 +81,52 @@
 </div>
 
 <div class="box">
-    <h3>Prüfhistorie</h3>
+    <h3>Prüfprotokolle</h3>
 
-    {% if historie %}
+    {% if protokolle %}
         <div class="table-wrapper">
             <table class="inventar-tabelle">
                 <tr>
                     <th>Prüfdatum</th>
                     <th>Ablaufdatum</th>
+                    <th>Prüfschema</th>
                     <th>Prüfstelle</th>
+                    <th>Ergebnis</th>
                     <th>Bemerkung</th>
-                    <th>Erfasst am</th>
+                    <th>PDF</th>
+                    <th>Details</th>
                 </tr>
 
-                {% for eintrag in historie %}
+                {% for protokoll in protokolle %}
                 <tr>
-                    <td>{{ eintrag["pruefdatum"] }}</td>
-                    <td>{{ eintrag["ablaufdatum"] }}</td>
-                    <td>{{ eintrag["pruefstelle"] }}</td>
-                    <td>{{ eintrag["bemerkung"] }}</td>
-                    <td>{{ eintrag["erstellt_am"] }}</td>
+                    <td>{{ protokoll["pruefdatum"] }}</td>
+                    <td>{{ protokoll["ablaufdatum"] }}</td>
+                    <td>{{ protokoll["schema_name"] }}</td>
+                    <td>{{ protokoll["pruefstelle"] }}</td>
+                    <td>{{ protokoll["ergebnis"] }}</td>
+                    <td>{{ protokoll["bemerkung"] }}</td>
+                    <td>
+                        {% if protokoll["pdf_dateiname"] %}
+                             <a href="{{ url_for('pruefprotokoll_pdf_oeffnen', id=protokoll['id']) }}" target="_blank">
+                                PDF öffnen
+                             </a>
+                        {% else %}
+                            Noch kein PDF
+                        {% endif %}
+                    </td>
+                    <td>
+                         <a href="{{ url_for('pruefprotokoll_detail', id=protokoll['id']) }}">
+                             Öffnen
+                         </a>
+                    </td>
                 </tr>
                 {% endfor %}
             </table>
         </div>
     {% else %}
-        <p>Für dieses Gerät gibt es noch keine Prüfhistorie.</p>
+        <p>Noch keine Prüfprotokolle vorhanden.</p>
     {% endif %}
 </div>
-
 <div class="box">
     <h3>Platzhalter für spätere Erweiterungen</h3>
     <p>Hier können später ergänzt werden:</p>
