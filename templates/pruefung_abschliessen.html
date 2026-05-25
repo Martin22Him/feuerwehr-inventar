@@ -6,15 +6,37 @@
 
 <div class="box">
     <h2>Prüfung abschließen</h2>
+
     <p>
         Gerät: <strong>{{ geraet["name"] }}</strong><br>
-        Interne Nummer: <strong>{{ geraet["interne_nummer"] }}</strong>
+        Interne Nummer: <strong>{{ geraet["interne_nummer"] }}</strong><br>
+        Kategorie: <strong>{{ geraet["kategorie"] }}</strong><br>
+        Fahrzeug: <strong>{{ geraet["fahrzeug"] }}</strong><br>
+        Fachnummer: <strong>{{ geraet["fachnummer"] }}</strong>
     </p>
 </div>
 
 <div class="box">
     <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {% if schema %}
+            <input type="hidden" name="schema_id" value="{{ schema['id'] }}">
+
+            <h3>Prüfschema</h3>
+            <p>
+                <strong>{{ schema["name"] }}</strong><br>
+                Kategorie: {{ schema["kategorie"] }}<br>
+                {{ schema["beschreibung"] }}
+            </p>
+        {% else %}
+            <div style="background:#fff3cd; padding:12px; border-radius:8px; margin-bottom:15px;">
+                Für diese Kategorie wurde noch kein aktives Prüfschema gefunden.
+                Die Prüfung kann gespeichert werden, aber ohne einzelne Prüfpunkte.
+            </div>
+        {% endif %}
+
+        <h3>Prüfdaten</h3>
 
         <p>
             <label>Neues Prüfdatum:</label><br>
@@ -27,24 +49,70 @@
         </p>
 
         <p>
-    <label>Prüfstelle:</label><br>
-    <select name="pruefstelle">
-        <option value="">Bitte auswählen</option>
-        {% for stelle in pruefstellen %}
-            <option value="{{ stelle }}" {% if geraet['pruefstelle'] == stelle %}selected{% endif %}>
-                {{ stelle }}
-            </option>
-        {% endfor %}
-    </select>
-</p>
+            <label>Prüfstelle:</label><br>
+            <select name="pruefstelle">
+                <option value="">Bitte auswählen</option>
+                {% for stelle in pruefstellen %}
+                    <option value="{{ stelle }}" {% if geraet['pruefstelle'] == stelle %}selected{% endif %}>
+                        {{ stelle }}
+                    </option>
+                {% endfor %}
+            </select>
+        </p>
 
         <p>
-            <label>Bemerkung (optional):</label><br>
+            <label>Gesamtergebnis:</label><br>
+            <select name="ergebnis" required>
+                <option value="bestanden">Bestanden</option>
+                <option value="mit_maengeln">Mit Mängeln bestanden</option>
+                <option value="nicht_bestanden">Nicht bestanden</option>
+            </select>
+        </p>
+
+        {% if pruefpunkte %}
+            <h3>Prüfpunkte</h3>
+
+            <div class="table-wrapper">
+                <table class="inventar-tabelle">
+                    <tr>
+                        <th>Prüfpunkt</th>
+                        <th>Hinweis</th>
+                        <th>Ergebnis</th>
+                        <th>Bemerkung</th>
+                    </tr>
+
+                    {% for punkt in pruefpunkte %}
+                    <tr>
+                        <td>
+                            {{ punkt["pruefpunkt"] }}
+                            {% if punkt["pflichtfeld"] %}
+                                <br><small>Pflichtpunkt</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ punkt["hinweis"] }}</td>
+                        <td>
+                            <select name="punkt_status_{{ punkt['id'] }}" required>
+                                <option value="bestanden">Bestanden</option>
+                                <option value="nicht_bestanden">Nicht bestanden</option>
+                                <option value="nicht_zutreffend">Nicht zutreffend</option>
+                            </select>
+                        </td>
+                        <td>
+                            <input type="text" name="punkt_bemerkung_{{ punkt['id'] }}">
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </div>
+        {% endif %}
+
+        <p>
+            <label>Bemerkung zur gesamten Prüfung:</label><br>
             <textarea name="bemerkung" rows="3"></textarea>
         </p>
 
         <p>
-            <button type="submit">Prüfung abschließen</button>
+            <button type="submit">Prüfung abschließen & Protokoll speichern</button>
         </p>
     </form>
 </div>
