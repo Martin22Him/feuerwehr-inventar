@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block title %}Benutzer bearbeiten{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Benutzer bearbeiten</h2>
+
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <p>
+            <label>Benutzername:</label><br>
+            <input type="text" name="username" value="{{ benutzer['username'] }}" required>
+        </p>
+
+        <p>
+            <label>Rolle:</label><br>
+            <select name="role" required>
+                <option value="benutzer" {% if benutzer["role"] == "benutzer" %}selected{% endif %}>Benutzer</option>
+                <option value="geraetewart" {% if benutzer["role"] == "geraetewart" %}selected{% endif %}>Gerätewart</option>
+                <option value="admin" {% if benutzer["role"] == "admin" %}selected{% endif %}>Admin</option>
+            </select>
+        </p>
+
+        <p>
+            <label>Aktiv:</label><br>
+            <select name="is_active">
+                <option value="1" {% if benutzer["is_active"] %}selected{% endif %}>Ja</option>
+                <option value="0" {% if not benutzer["is_active"] %}selected{% endif %}>Nein</option>
+            </select>
+        </p>
+
+        <p>
+            <button type="submit">Speichern</button>
+            <a href="{{ url_for('benutzer_liste') }}">Abbrechen</a>
+        </p>
+    </form>
+</div>
+
+{% endblock %}
