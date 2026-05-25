@@ -19,6 +19,13 @@ from werkzeug.security import check_password_hash
 from wtforms import PasswordField, StringField, SubmitField
 from wtforms.validators import DataRequired
 
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import getSampleStyleSheet
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+
+import requests
+
 app = Flask(__name__)
 
 # WICHTIG: SECRET_KEY nicht mehr fest im Code speichern.
@@ -374,6 +381,191 @@ def lade_fahrzeugdaten(schluessel):
     verbindung.close()
     return fahrzeugdaten
 
+def erstelle_pruefprotokoll_pdf(protokoll_id):
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    db_execute(cursor, """
+        SELECT 
+            p.*,
+            g.name AS geraet_name,
+            g.interne_nummer,
+            g.barcode,
+            g.fahrzeug,
+            g.fachnummer,
+            g.kategorie,
+            s.name AS schema_name
+        FROM pruefprotokolle p
+        JOIN geraete g ON p.geraet_id = g.id
+        LEFT JOIN pruefschemata s ON p.schema_id = s.id
+        WHERE p.id = ?
+    """, (protokoll_id,))
+    protokoll = cursor.fetchone()
+
+    db_execute(cursor, """
+        SELECT *
+        FROM pruefpunkt_ergebnisse
+        WHERE protokoll_id = ?
+        ORDER BY id ASC
+    """, (protokoll_id,))
+    pruefpunkte = cursor.fetchall()
+
+    verbindung.close()
+
+    ordner = BASIS_ORDNER / "static" / "pruefprotokolle"
+    ordner.mkdir(parents=True, exist_ok=True)
+
+    dateiname = f"pruefprotokoll_{protokoll_id}_{protokoll['interne_nummer']}.pdf"
+    dateipfad = ordner / dateiname
+
+    doc = SimpleDocTemplate(str(dateipfad), pagesize=A4)
+    styles = getSampleStyleSheet()
+    elemente = []
+
+    elemente.append(Paragraph("<b>Freiwillige Feuerwehr Jesewitz</b>", styles["Title"]))
+    elemente.append(Spacer(1, 6))
+    elemente.append(Paragraph("<b>Prüfprotokoll gemäß DGUV 305-002, Fassung 2021.12</b>", styles["Heading2"]))
+    elemente.append(Spacer(1, 12))
+
+
+    kopf_daten = [
+        ["Protokoll-Nr.", str(protokoll_id)],
+        ["Gerät", protokoll["geraet_name"]],
+        ["Interne Nummer", protokoll["interne_nummer"]],
+        ["Barcode", protokoll["barcode"]],
+        ["Kategorie", protokoll["kategorie"]],
+        ["Fahrzeug", protokoll["fahrzeug"]],
+        ["Fachnummer", protokoll["fachnummer"]],
+        ["Prüfschema", protokoll["schema_name"]],
+        ["Prüfdatum", protokoll["pruefdatum"]],
+        ["Nächste Prüfung", protokoll["ablaufdatum"]],
+        ["Prüfstelle", protokoll["pruefstelle"]],
+        ["Ergebnis", protokoll["ergebnis"]],
+    ]
+
+    tabelle_kopf = Table(kopf_daten, colWidths=[130, 350])
+    tabelle_kopf.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (0, -1), colors.lightgrey),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("FONTNAME", (0, 0), (0, -1), "Helvetica-Bold"),
+        ("PADDING", (0, 0), (-1, -1), 6),
+    ]))
+    elemente.append(tabelle_kopf)
+    elemente.append(Spacer(1, 18))
+
+    elemente.append(Paragraph("Prüfpunkte", styles["Heading2"]))
+
+    pruefpunkt_daten = [["Prüfpunkt", "Status", "Bemerkung"]]
+
+    for punkt in pruefpunkte:
+        pruefpunkt_daten.append([
+            Paragraph(str(punkt["pruefpunkt_text"] or ""), styles["BodyText"]),
+            str(punkt["status"] or ""),
+            Paragraph(str(punkt["bemerkung"] or ""), styles["BodyText"]),
+        ])
+
+    tabelle_punkte = Table(pruefpunkt_daten, colWidths=[260, 100, 120])
+    tabelle_punkte.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("VALIGN", (0, 0), (-1, -1), "TOP"),
+        ("PADDING", (0, 0), (-1, -1), 6),
+    ]))
+    elemente.append(tabelle_punkte)
+    elemente.append(Spacer(1, 18))
+
+    elemente.append(Paragraph("Bemerkung", styles["Heading2"]))
+    elemente.append(Paragraph(str(protokoll["bemerkung"] or "-"), styles["BodyText"]))
+    elemente.append(Spacer(1, 30))
+
+    unterschrift = Table([
+        ["Prüfer / Prüfstelle", "Unterschrift"],
+        ["", ""]
+    ], colWidths=[240, 240], rowHeights=[24, 45])
+    unterschrift.setStyle(TableStyle([
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+        ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+    ]))
+    elemente.append(unterschrift)
+
+    doc.build(elemente)
+
+    storage_pfad = f"protokolle/{protokoll_id}/{dateiname}"
+    cloud_url = lade_pdf_zu_supabase_hoch(dateipfad, storage_pfad)
+
+    if cloud_url:
+        pdf_url = cloud_url
+
+        try:
+            dateipfad.unlink()
+        except Exception:
+            pass
+    else:
+         pdf_url = url_for("static", filename=f"pruefprotokolle/{dateiname}")
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+    db_execute(cursor, """
+         UPDATE pruefprotokolle
+         SET pdf_url = ?,
+             pdf_dateiname = ?
+         WHERE id = ?
+    """, (pdf_url, dateiname, protokoll_id))
+    verbindung.commit()
+    verbindung.close()
+
+    return pdf_url
+
+def lade_pdf_zu_supabase_hoch(dateipfad, storage_pfad):
+    supabase_url = os.environ.get("SUPABASE_URL")
+    supabase_key = os.environ.get("SUPABASE_SERVICE_KEY")
+    bucket_name = os.environ.get("SUPABASE_BUCKET", "pruefprotokolle")
+
+    if not supabase_url or not supabase_key:
+        return None
+
+    upload_url = f"{supabase_url}/storage/v1/object/{bucket_name}/{storage_pfad}"
+
+    headers = {
+        "Authorization": f"Bearer {supabase_key}",
+        "apikey": supabase_key,
+        "Content-Type": "application/pdf",
+        "x-upsert": "true",
+    }
+
+    with open(dateipfad, "rb") as datei:
+        response = requests.post(upload_url, headers=headers, data=datei)
+
+    if response.status_code not in (200, 201):
+        print("Supabase Upload Fehler:", response.status_code, response.text)
+        return None
+
+    signed_url_api = f"{supabase_url}/storage/v1/object/sign/{bucket_name}/{storage_pfad}"
+
+    signed_response = requests.post(
+        signed_url_api,
+        headers={
+            "Authorization": f"Bearer {supabase_key}",
+            "apikey": supabase_key,
+            "Content-Type": "application/json",
+        },
+        json={"expiresIn": 60 * 60 * 24 * 365}
+    )
+
+    if signed_response.status_code != 200:
+        print("Supabase Signed URL Fehler:", signed_response.status_code, signed_response.text)
+        return None
+
+    daten = signed_response.json()
+    signed_url = daten.get("signedURL") or daten.get("signedUrl") or daten.get("signed_url")
+
+    if signed_url and signed_url.startswith("/"):
+        signed_url = supabase_url + "/storage/v1" + signed_url
+
+    return signed_url
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -560,6 +752,222 @@ def benutzer_passwort(id):
     verbindung.close()
 
     return render_template("benutzer_passwort.html", benutzer=benutzer)
+
+@app.route("/pruefschemata")
+@login_required
+@geraetewart_required
+def pruefschemata_liste():
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    db_execute(cursor, """
+        SELECT id, name, kategorie, beschreibung, aktiv, erstellt_am
+        FROM pruefschemata
+        ORDER BY kategorie ASC, name ASC
+    """)
+    schemata = cursor.fetchall()
+    verbindung.close()
+
+    return render_template("pruefschemata.html", schemata=schemata)
+
+
+@app.route("/pruefschemata/neu", methods=["GET", "POST"])
+@login_required
+@geraetewart_required
+def pruefschema_neu():
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        kategorie = request.form.get("kategorie", "").strip()
+        beschreibung = request.form.get("beschreibung", "").strip()
+        aktiv = 1 if request.form.get("aktiv") == "1" else 0
+
+        if not name or not kategorie:
+            flash("Name und Kategorie sind Pflichtfelder.", "danger")
+            return redirect(url_for("pruefschema_neu"))
+
+        verbindung = hole_db_verbindung()
+        cursor = verbindung.cursor()
+
+        db_execute(cursor, """
+            INSERT INTO pruefschemata (name, kategorie, beschreibung, aktiv)
+            VALUES (?, ?, ?, ?)
+        """, (name, kategorie, beschreibung, aktiv))
+
+        verbindung.commit()
+        verbindung.close()
+
+        flash("Prüfschema wurde angelegt.", "success")
+        return redirect(url_for("pruefschemata_liste"))
+
+    df = lade_geraete_aus_db()
+    kategorien = sorted([k for k in df["kategorie"].dropna().unique() if str(k).strip() != ""])
+
+    return render_template("pruefschema_neu.html", kategorien=kategorien)
+
+
+@app.route("/pruefschemata/<int:id>")
+@login_required
+@geraetewart_required
+def pruefschema_detail(id):
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    db_execute(cursor, """
+        SELECT id, name, kategorie, beschreibung, aktiv, erstellt_am
+        FROM pruefschemata
+        WHERE id = ?
+    """, (id,))
+    schema = cursor.fetchone()
+
+    if not schema:
+        verbindung.close()
+        return "Prüfschema nicht gefunden."
+
+    db_execute(cursor, """
+        SELECT id, schema_id, sortierung, pruefpunkt, hinweis, pflichtfeld
+        FROM pruefpunkte
+        WHERE schema_id = ?
+        ORDER BY sortierung ASC, id ASC
+    """, (id,))
+    pruefpunkte = cursor.fetchall()
+
+    verbindung.close()
+
+    return render_template(
+        "pruefschema_detail.html",
+        schema=schema,
+        pruefpunkte=pruefpunkte
+    )
+
+
+@app.route("/pruefschemata/<int:id>/bearbeiten", methods=["GET", "POST"])
+@login_required
+@geraetewart_required
+def pruefschema_bearbeiten(id):
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        kategorie = request.form.get("kategorie", "").strip()
+        beschreibung = request.form.get("beschreibung", "").strip()
+        aktiv = 1 if request.form.get("aktiv") == "1" else 0
+
+        db_execute(cursor, """
+            UPDATE pruefschemata
+            SET name = ?,
+                kategorie = ?,
+                beschreibung = ?,
+                aktiv = ?
+            WHERE id = ?
+        """, (name, kategorie, beschreibung, aktiv, id))
+
+        verbindung.commit()
+        verbindung.close()
+
+        flash("Prüfschema wurde aktualisiert.", "success")
+        return redirect(url_for("pruefschema_detail", id=id))
+
+    db_execute(cursor, """
+        SELECT id, name, kategorie, beschreibung, aktiv
+        FROM pruefschemata
+        WHERE id = ?
+    """, (id,))
+    schema = cursor.fetchone()
+    verbindung.close()
+
+    if not schema:
+        return "Prüfschema nicht gefunden."
+
+    df = lade_geraete_aus_db()
+    kategorien = sorted([k for k in df["kategorie"].dropna().unique() if str(k).strip() != ""])
+
+    return render_template("pruefschema_bearbeiten.html", schema=schema, kategorien=kategorien)
+
+
+@app.route("/pruefschemata/<int:schema_id>/pruefpunkt/neu", methods=["GET", "POST"])
+@login_required
+@geraetewart_required
+def pruefpunkt_neu(schema_id):
+    if request.method == "POST":
+        sortierung = request.form.get("sortierung", "0")
+        pruefpunkt = request.form.get("pruefpunkt", "").strip()
+        hinweis = request.form.get("hinweis", "").strip()
+        pflichtfeld = 1 if request.form.get("pflichtfeld") == "1" else 0
+
+        try:
+            sortierung = int(sortierung)
+        except ValueError:
+            sortierung = 0
+
+        if not pruefpunkt:
+            flash("Prüfpunkt ist ein Pflichtfeld.", "danger")
+            return redirect(url_for("pruefpunkt_neu", schema_id=schema_id))
+
+        verbindung = hole_db_verbindung()
+        cursor = verbindung.cursor()
+
+        db_execute(cursor, """
+            INSERT INTO pruefpunkte (schema_id, sortierung, pruefpunkt, hinweis, pflichtfeld)
+            VALUES (?, ?, ?, ?, ?)
+        """, (schema_id, sortierung, pruefpunkt, hinweis, pflichtfeld))
+
+        verbindung.commit()
+        verbindung.close()
+
+        flash("Prüfpunkt wurde angelegt.", "success")
+        return redirect(url_for("pruefschema_detail", id=schema_id))
+
+    return render_template("pruefpunkt_neu.html", schema_id=schema_id)
+
+
+@app.route("/pruefpunkt/<int:id>/bearbeiten", methods=["GET", "POST"])
+@login_required
+@geraetewart_required
+def pruefpunkt_bearbeiten(id):
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    if request.method == "POST":
+        sortierung = request.form.get("sortierung", "0")
+        pruefpunkt = request.form.get("pruefpunkt", "").strip()
+        hinweis = request.form.get("hinweis", "").strip()
+        pflichtfeld = 1 if request.form.get("pflichtfeld") == "1" else 0
+
+        try:
+            sortierung = int(sortierung)
+        except ValueError:
+            sortierung = 0
+
+        db_execute(cursor, """
+            UPDATE pruefpunkte
+            SET sortierung = ?,
+                pruefpunkt = ?,
+                hinweis = ?,
+                pflichtfeld = ?
+            WHERE id = ?
+        """, (sortierung, pruefpunkt, hinweis, pflichtfeld, id))
+
+        verbindung.commit()
+
+        db_execute(cursor, "SELECT schema_id FROM pruefpunkte WHERE id = ?", (id,))
+        punkt = cursor.fetchone()
+        verbindung.close()
+
+        return redirect(url_for("pruefschema_detail", id=punkt["schema_id"]))
+
+    db_execute(cursor, """
+        SELECT id, schema_id, sortierung, pruefpunkt, hinweis, pflichtfeld
+        FROM pruefpunkte
+        WHERE id = ?
+    """, (id,))
+    punkt = cursor.fetchone()
+    verbindung.close()
+
+    if not punkt:
+        return "Prüfpunkt nicht gefunden."
+
+    return render_template("pruefpunkt_bearbeiten.html", punkt=punkt)
 
 @app.route("/")
 @login_required
@@ -935,19 +1343,40 @@ def geraet_detail(id):
         return f"Gerät mit ID {id} nicht gefunden."
 
     db_execute(cursor, """
-        SELECT * FROM pruefhistorie
+        SELECT *
+        FROM pruefhistorie
         WHERE geraet_id = ?
         ORDER BY pruefdatum DESC, id DESC
     """, (id,))
     historie = cursor.fetchall()
+
+    db_execute(cursor, """
+        SELECT 
+            p.id,
+            p.pruefdatum,
+            p.ablaufdatum,
+            p.pruefstelle,
+            p.ergebnis,
+            p.bemerkung,
+            p.pdf_url,
+            p.pdf_dateiname,
+            s.name AS schema_name
+        FROM pruefprotokolle p
+        LEFT JOIN pruefschemata s ON p.schema_id = s.id
+        WHERE p.geraet_id = ?
+        ORDER BY p.pruefdatum DESC, p.id DESC
+    """, (id,))
+    protokolle = cursor.fetchall()
 
     verbindung.close()
 
     return render_template(
         "geraet_detail.html",
         geraet=geraet,
-        historie=historie
+        historie=historie,
+        protokolle=protokolle
     )
+
 @app.route("/pruefauftrag")
 @login_required
 def pruefauftrag():
@@ -993,13 +1422,84 @@ def geraet_pruefung_abschliessen(id):
         verbindung.close()
         return f"Gerät mit ID {id} nicht gefunden."
 
+    db_execute(cursor, """
+        SELECT *
+        FROM pruefschemata
+        WHERE kategorie = ?
+          AND aktiv = 1
+        ORDER BY id ASC
+        LIMIT 1
+    """, (geraet["kategorie"],))
+    schema = cursor.fetchone()
+
+    pruefpunkte = []
+    if schema:
+        db_execute(cursor, """
+            SELECT *
+            FROM pruefpunkte
+            WHERE schema_id = ?
+            ORDER BY sortierung ASC, id ASC
+        """, (schema["id"],))
+        pruefpunkte = cursor.fetchall()
+
     if request.method == "POST":
         pruefdatum = request.form.get("pruefdatum", "")
         ablaufdatum = request.form.get("ablaufdatum", "")
         pruefstelle = request.form.get("pruefstelle", "")
         bemerkung = request.form.get("bemerkung", "")
+        ergebnis = request.form.get("ergebnis", "bestanden")
 
-        # Historie speichern
+        schema_id = request.form.get("schema_id") or None
+
+        db_execute(cursor, """
+            INSERT INTO pruefprotokolle (
+                geraet_id,
+                schema_id,
+                pruefdatum,
+                ablaufdatum,
+                pruefstelle,
+                ergebnis,
+                bemerkung
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            id,
+            schema_id,
+            pruefdatum,
+            ablaufdatum,
+            pruefstelle,
+            ergebnis,
+            bemerkung
+        ))
+
+        if USING_POSTGRES:
+            db_execute(cursor, "SELECT LASTVAL() AS id")
+            protokoll_id = cursor.fetchone()["id"]
+        else:
+            protokoll_id = cursor.lastrowid
+
+        for punkt in pruefpunkte:
+            punkt_id = punkt["id"]
+            status = request.form.get(f"punkt_status_{punkt_id}", "nicht_geprueft")
+            punkt_bemerkung = request.form.get(f"punkt_bemerkung_{punkt_id}", "")
+
+            db_execute(cursor, """
+                INSERT INTO pruefpunkt_ergebnisse (
+                    protokoll_id,
+                    pruefpunkt_id,
+                    pruefpunkt_text,
+                    status,
+                    bemerkung
+                )
+                VALUES (?, ?, ?, ?, ?)
+            """, (
+                protokoll_id,
+                punkt_id,
+                punkt["pruefpunkt"],
+                status,
+                punkt_bemerkung
+            ))
+
         db_execute(cursor, """
             INSERT INTO pruefhistorie (
                 geraet_id,
@@ -1017,7 +1517,6 @@ def geraet_pruefung_abschliessen(id):
             bemerkung
         ))
 
-        # Gerät aktualisieren
         db_execute(cursor, """
             UPDATE geraete
             SET pruefstatus = 'frei',
@@ -1035,7 +1534,10 @@ def geraet_pruefung_abschliessen(id):
         verbindung.commit()
         verbindung.close()
 
-        return redirect(url_for("pruefauftrag"))
+        erstelle_pruefprotokoll_pdf(protokoll_id)
+
+        flash("Prüfung wurde abgeschlossen und das Prüfprotokoll wurde gespeichert.", "success")
+        return redirect(url_for("geraet_detail", id=id))
 
     verbindung.close()
 
@@ -1044,8 +1546,104 @@ def geraet_pruefung_abschliessen(id):
     return render_template(
         "pruefung_abschliessen.html",
         geraet=geraet,
-        pruefstellen=pruefstellen
+        pruefstellen=pruefstellen,
+        schema=schema,
+        pruefpunkte=pruefpunkte
     )
+
+@app.route("/pruefprotokoll/<int:id>")
+@login_required
+def pruefprotokoll_detail(id):
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    db_execute(cursor, """
+        SELECT 
+            p.*,
+            g.name AS geraet_name,
+            g.interne_nummer,
+            g.barcode,
+            g.fahrzeug,
+            g.fachnummer,
+            g.kategorie,
+            s.name AS schema_name
+        FROM pruefprotokolle p
+        JOIN geraete g ON p.geraet_id = g.id
+        LEFT JOIN pruefschemata s ON p.schema_id = s.id
+        WHERE p.id = ?
+    """, (id,))
+    protokoll = cursor.fetchone()
+
+    if not protokoll:
+        verbindung.close()
+        return "Prüfprotokoll nicht gefunden."
+
+    db_execute(cursor, """
+        SELECT *
+        FROM pruefpunkt_ergebnisse
+        WHERE protokoll_id = ?
+        ORDER BY id ASC
+    """, (id,))
+    pruefpunkte = cursor.fetchall()
+
+    verbindung.close()
+
+    return render_template(
+        "pruefprotokoll_detail.html",
+        protokoll=protokoll,
+        pruefpunkte=pruefpunkte
+    )
+
+@app.route("/pruefprotokoll/<int:id>/pdf")
+@login_required
+def pruefprotokoll_pdf_oeffnen(id):
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    db_execute(cursor, """
+        SELECT pdf_dateiname
+        FROM pruefprotokolle
+        WHERE id = ?
+    """, (id,))
+    protokoll = cursor.fetchone()
+
+    verbindung.close()
+
+    if not protokoll or not protokoll["pdf_dateiname"]:
+        return "Kein PDF vorhanden."
+
+    supabase_url = os.environ.get("SUPABASE_URL")
+    supabase_key = os.environ.get("SUPABASE_SERVICE_KEY")
+    bucket_name = os.environ.get("SUPABASE_BUCKET", "pruefprotokolle")
+
+    if not supabase_url or not supabase_key:
+        return "Supabase ist nicht eingerichtet."
+
+    storage_pfad = f"protokolle/{id}/{protokoll['pdf_dateiname']}"
+
+    signed_url_api = f"{supabase_url}/storage/v1/object/sign/{bucket_name}/{storage_pfad}"
+
+    response = requests.post(
+        signed_url_api,
+        headers={
+            "Authorization": f"Bearer {supabase_key}",
+            "apikey": supabase_key,
+            "Content-Type": "application/json",
+        },
+        json={"expiresIn": 60 * 10}
+    )
+
+    if response.status_code != 200:
+        return f"PDF konnte nicht geöffnet werden: {response.text}"
+
+    daten = response.json()
+    signed_url = daten.get("signedURL") or daten.get("signedUrl") or daten.get("signed_url")
+
+    if signed_url and signed_url.startswith("/"):
+        signed_url = supabase_url + "/storage/v1" + signed_url
+
+    return redirect(signed_url)
+
 @app.route("/barcode_suche")
 @login_required
 def barcode_suche():
