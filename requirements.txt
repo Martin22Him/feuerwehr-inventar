@@ -8,3 +8,5 @@ email-validator
 SQLAlchemy
 psycopg[binary]
 psycopg2-binary
+reportlab
+requests
