@@ -1427,20 +1427,35 @@ def geraet_pruefung_abschliessen(id):
         FROM pruefschemata
         WHERE kategorie = ?
           AND aktiv = 1
-        ORDER BY id ASC
-        LIMIT 1
+        ORDER BY name ASC
     """, (geraet["kategorie"],))
-    schema = cursor.fetchone()
+    schemata = cursor.fetchall()
 
+    ausgewaehltes_schema_id = request.values.get("schema_id")
+
+    if not ausgewaehltes_schema_id and len(schemata) == 1:
+        ausgewaehltes_schema_id = str(schemata[0]["id"])
+
+    schema = None
     pruefpunkte = []
-    if schema:
+
+    if ausgewaehltes_schema_id:
         db_execute(cursor, """
             SELECT *
-            FROM pruefpunkte
-            WHERE schema_id = ?
-            ORDER BY sortierung ASC, id ASC
-        """, (schema["id"],))
-        pruefpunkte = cursor.fetchall()
+            FROM pruefschemata
+            WHERE id = ?
+              AND aktiv = 1
+        """, (ausgewaehltes_schema_id,))
+        schema = cursor.fetchone()
+
+        if schema:
+            db_execute(cursor, """
+                SELECT *
+                FROM pruefpunkte
+                WHERE schema_id = ?
+                ORDER BY sortierung ASC, id ASC
+            """, (schema["id"],))
+            pruefpunkte = cursor.fetchall()
 
     if request.method == "POST":
         pruefdatum = request.form.get("pruefdatum", "")
@@ -1448,8 +1463,12 @@ def geraet_pruefung_abschliessen(id):
         pruefstelle = request.form.get("pruefstelle", "")
         bemerkung = request.form.get("bemerkung", "")
         ergebnis = request.form.get("ergebnis", "bestanden")
-
         schema_id = request.form.get("schema_id") or None
+
+        if schemata and not schema_id:
+            verbindung.close()
+            flash("Bitte ein Prüfschema auswählen.", "danger")
+            return redirect(url_for("geraet_pruefung_abschliessen", id=id))
 
         db_execute(cursor, """
             INSERT INTO pruefprotokolle (
@@ -1547,8 +1566,10 @@ def geraet_pruefung_abschliessen(id):
         "pruefung_abschliessen.html",
         geraet=geraet,
         pruefstellen=pruefstellen,
+        schemata=schemata,
         schema=schema,
-        pruefpunkte=pruefpunkte
+        pruefpunkte=pruefpunkte,
+        ausgewaehltes_schema_id=ausgewaehltes_schema_id
     )
 
 @app.route("/pruefprotokoll/<int:id>")
