@@ -24,17 +24,42 @@
             <input type="hidden" name="schema_id" value="{{ schema['id'] }}">
 
             <h3>Prüfschema</h3>
-            <p>
-                <strong>{{ schema["name"] }}</strong><br>
-                Kategorie: {{ schema["kategorie"] }}<br>
-                {{ schema["beschreibung"] }}
-            </p>
-        {% else %}
-            <div style="background:#fff3cd; padding:12px; border-radius:8px; margin-bottom:15px;">
-                Für diese Kategorie wurde noch kein aktives Prüfschema gefunden.
-                Die Prüfung kann gespeichert werden, aber ohne einzelne Prüfpunkte.
-            </div>
-        {% endif %}
+
+{% if schemata %}
+    {% if schemata|length > 1 %}
+        <p>
+            <label>Prüfschema auswählen:</label><br>
+            <select name="schema_id" onchange="window.location='{{ url_for('geraet_pruefung_abschliessen', id=geraet['id']) }}?schema_id=' + this.value" required>
+                <option value="">Bitte auswählen</option>
+                {% for ein_schema in schemata %}
+                    <option value="{{ ein_schema['id'] }}"
+                        {% if ausgewaehltes_schema_id|string == ein_schema['id']|string %}selected{% endif %}>
+                        {{ ein_schema["name"] }}
+                    </option>
+                {% endfor %}
+            </select>
+        </p>
+    {% elif schema %}
+        <input type="hidden" name="schema_id" value="{{ schema['id'] }}">
+    {% endif %}
+
+    {% if schema %}
+        <p>
+            <strong>{{ schema["name"] }}</strong><br>
+            Kategorie: {{ schema["kategorie"] }}<br>
+            {{ schema["beschreibung"] }}
+        </p>
+    {% else %}
+        <div style="background:#fff3cd; padding:12px; border-radius:8px; margin-bottom:15px;">
+            Bitte wähle zuerst ein Prüfschema aus. Danach werden die passenden Prüfpunkte geladen.
+        </div>
+    {% endif %}
+{% else %}
+    <div style="background:#fff3cd; padding:12px; border-radius:8px; margin-bottom:15px;">
+        Für diese Kategorie wurde noch kein aktives Prüfschema gefunden.
+        Die Prüfung kann gespeichert werden, aber ohne einzelne Prüfpunkte.
+    </div>
+{% endif %}
 
         <h3>Prüfdaten</h3>
 
