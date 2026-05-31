@@ -8,9 +8,31 @@
     <h2>Neues Gerät hinzufügen</h2>
 
     <form method="post">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <p>
+    {% if current_user.role == "admin" %}
+    <p>
+        <label>Wehr:</label><br>
+        <select name="wehr_id" required>
+            <option value="">Bitte auswählen</option>
+
+            {% for wehr in wehren %}
+                <option value="{{ wehr['id'] }}"
+                    {% if aktive_wehr|string == wehr['id']|string %}
+                        selected
+                    {% endif %}
+                >
+                    {{ wehr['name'] }}
+                </option>
+            {% endfor %}
+        </select>
+    </p>
+    {% endif %}
+
+    <p>
+        <label>Interne Nummer:</label><br>
+        <input type="text" name="interne_nummer" required>
+    </p>
             <label>Interne Nummer:</label><br>
             <input type="text" name="interne_nummer" required>
         </p>

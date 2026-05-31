@@ -30,6 +30,16 @@
         </p>
 
         <p>
+            <label>Wehr:</label><br>
+            <select name="wehr_id" required>
+                <option value="">Bitte auswählen</option>
+                {% for wehr in wehren %}
+                <option value="{{ wehr['id'] }}">{{ wehr['name'] }}</option>
+                {% endfor %}
+            </select>
+        </p>
+
+        <p>
             <label>Aktiv:</label><br>
             <select name="is_active">
                 <option value="1" selected>Ja</option>

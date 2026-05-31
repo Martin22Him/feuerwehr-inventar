@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Fahrzeuge verwalten{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Fahrzeuge verwalten</h2>
+
+    <p>
+        <a href="{{ url_for('fahrzeug_neu') }}" class="nav-button" style="display:inline-block; width:auto;">
+            Fahrzeug anlegen
+        </a>
+    </p>
+
+    {% if fahrzeuge %}
+        <div class="table-wrapper">
+            <table class="inventar-tabelle">
+                <tr>
+                    <th>Name</th>
+                    <th>Schlüssel</th>
+                    <th>Typ</th>
+                    <th>Kennzeichen</th>
+                    <th>TÜV</th>
+                    <th>SP</th>
+                    <th>Schlauchwechsel</th>
+                    <th>Wehr</th>
+                    <th>Aktiv</th>
+                    <th>Aktion</th>
+                </tr>
+
+                {% for fahrzeug in fahrzeuge %}
+                <tr>
+                    <td>{{ fahrzeug["name"] }}</td>
+                    <td>{{ fahrzeug["schluessel"] }}</td>
+                    <td>{{ fahrzeug["typ"] }}</td>
+                    <td>{{ fahrzeug["kennzeichen"] }}</td>
+                    <td>{{ fahrzeug["tuev_termin"] }}</td>
+                    <td>{{ fahrzeug["sp_termin"] }}</td>
+                    <td>{{ fahrzeug["schlauchwechsel"] }}</td>
+                    <td>{{ fahrzeug["wehr_name"] }}</td>
+                    <td>{% if fahrzeug["aktiv"] %}Ja{% else %}Nein{% endif %}</td>
+                    <td>
+                        <a href="{{ url_for('fahrzeug_bearbeiten', schluessel=fahrzeug['schluessel']) }}">
+                             Bearbeiten
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    {% else %}
+        <p>Für diese Wehr wurden noch keine Fahrzeuge angelegt.</p>
+    {% endif %}
+</div>
+
+{% endblock %}

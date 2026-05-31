@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}Wehren{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Wehren verwalten</h2>
+
+    <p>
+        <a href="{{ url_for('wehr_neu') }}" class="nav-button" style="display:inline-block; width:auto;">
+            Neue Wehr anlegen
+        </a>
+    </p>
+
+    <div class="table-wrapper">
+        <table class="inventar-tabelle">
+            <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Kürzel</th>
+                <th>Aktiv</th>
+                <th>Erstellt am</th>
+            </tr>
+
+            {% for wehr in wehren %}
+            <tr>
+                <td>{{ wehr["id"] }}</td>
+                <td>{{ wehr["name"] }}</td>
+                <td>{{ wehr["kuerzel"] }}</td>
+                <td>{% if wehr["aktiv"] %}Ja{% else %}Nein{% endif %}</td>
+                <td>{{ wehr["erstellt_am"] }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+</div>
+
+{% endblock %}

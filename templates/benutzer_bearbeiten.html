@@ -18,9 +18,22 @@
         <p>
             <label>Rolle:</label><br>
             <select name="role" required>
-                <option value="benutzer" {% if benutzer["role"] == "benutzer" %}selected{% endif %}>Benutzer</option>
-                <option value="geraetewart" {% if benutzer["role"] == "geraetewart" %}selected{% endif %}>Gerätewart</option>
                 <option value="admin" {% if benutzer["role"] == "admin" %}selected{% endif %}>Admin</option>
+                <option value="geraetewart" {% if benutzer["role"] == "geraetewart" %}selected{% endif %}>Gerätewart</option>
+                <option value="benutzer" {% if benutzer["role"] == "benutzer" %}selected{% endif %}>Benutzer</option>
+            </select>
+        </p>
+
+        <p>
+            <label>Wehr:</label><br>
+            <select name="wehr_id" required>
+                <option value="">Bitte auswählen</option>
+                {% for wehr in wehren %}
+                    <option value="{{ wehr['id'] }}"
+                        {% if benutzer['wehr_id']|string == wehr['id']|string %}selected{% endif %}>
+                        {{ wehr['name'] }}
+                    </option>
+                {% endfor %}
             </select>
         </p>
 

@@ -1,44 +1,69 @@
 {% extends "base.html" %}
 
-{% block title %}Fahrzeuginfos bearbeiten{% endblock %}
+{% block title %}Fahrzeug bearbeiten{% endblock %}
 
 {% block content %}
 
 <div class="box">
-    <h2>Fahrzeuginfos bearbeiten</h2>
-    <p><strong>{{ fahrzeugdaten["name"] }}</strong></p>
+    <h2>Fahrzeug bearbeiten</h2>
+    <p><strong>{{ fahrzeug["name"] }}</strong></p>
 </div>
 
 <div class="box">
     <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        {% if schluessel in ["tlf", "lf"] %}
-            <p>
-                <label>TÜV-Termin:</label><br>
-                <input type="text" name="tuev_termin" value="{{ fahrzeugdaten['tuev_termin'] or '' }}" placeholder="z.B. 2026-05-01">
-            </p>
+        <p>
+            <label>Fahrzeugname:</label><br>
+            <input type="text" name="name" value="{{ fahrzeug['name'] or '' }}" required>
+        </p>
 
-            <p>
-                <label>SP-Termin:</label><br>
-                <input type="text" name="sp_termin" value="{{ fahrzeugdaten['sp_termin'] or '' }}" placeholder="z.B. 2026-06-01">
-            </p>
+        <p>
+            <label>Schlüssel / URL-Kürzel:</label><br>
+            <input type="text" name="schluessel" value="{{ fahrzeug['schluessel'] or '' }}" required>
+        </p>
 
-            <p>
-                <label>Kennzeichen:</label><br>
-                <input type="text" name="kennzeichen" value="{{ fahrzeugdaten['kennzeichen'] or '' }}">
-            </p>
-        {% endif %}
+        <p>
+            <label>Typ:</label><br>
+            <select name="typ">
+                <option value="fahrzeug" {% if fahrzeug["typ"] == "fahrzeug" %}selected{% endif %}>Fahrzeug</option>
+                <option value="anhaenger" {% if fahrzeug["typ"] == "anhaenger" %}selected{% endif %}>Anhänger</option>
+                <option value="lager" {% if fahrzeug["typ"] == "lager" %}selected{% endif %}>Lager/Bereich</option>
+                <option value="schlauch" {% if fahrzeug["typ"] == "schlauch" %}selected{% endif %}>Schlauchbestand</option>
+            </select>
+        </p>
 
-        {% if schluessel == "schlauchanhaenger" %}
-            <p>
-                <label>Schlauchwechsel durchgeführt:</label><br>
-                <input type="text" name="schlauchwechsel" value="{{ fahrzeugdaten['schlauchwechsel'] or '' }}" placeholder="z.B. 2026-04-20">
-            </p>
-        {% endif %}
+        <p>
+            <label>Kennzeichen:</label><br>
+            <input type="text" name="kennzeichen" value="{{ fahrzeug['kennzeichen'] or '' }}">
+        </p>
+
+        <p>
+            <label>TÜV-Termin:</label><br>
+            <input type="text" name="tuev_termin" value="{{ fahrzeug['tuev_termin'] or '' }}" placeholder="YYYY-MM-DD">
+        </p>
+
+        <p>
+            <label>SP-Termin:</label><br>
+            <input type="text" name="sp_termin" value="{{ fahrzeug['sp_termin'] or '' }}" placeholder="YYYY-MM-DD">
+        </p>
+
+        <p>
+            <label>Schlauchwechsel:</label><br>
+            <input type="text" name="schlauchwechsel" value="{{ fahrzeug['schlauchwechsel'] or '' }}" placeholder="YYYY-MM-DD">
+        </p>
+
+        <p>
+            <label>Aktiv:</label><br>
+            <select name="aktiv">
+                <option value="1" {% if fahrzeug["aktiv"] %}selected{% endif %}>Ja</option>
+                <option value="0" {% if not fahrzeug["aktiv"] %}selected{% endif %}>Nein</option>
+            </select>
+        </p>
 
         <p>
             <button type="submit">Speichern</button>
+            <a href="{{ url_for('fahrzeuge_verwalten') }}">Abbrechen</a>
         </p>
     </form>
 </div>

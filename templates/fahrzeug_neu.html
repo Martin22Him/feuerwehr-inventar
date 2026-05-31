@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block title %}Fahrzeug anlegen{% endblock %}
+
+{% block content %}
+
+<div class="box">
+    <h2>Fahrzeug anlegen</h2>
+
+    <form method="post">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        {% if current_user.role == "admin" %}
+        <p>
+            <label>Wehr:</label><br>
+            <select name="wehr_id" required>
+                <option value="">Bitte auswählen</option>
+                {% for wehr in wehren %}
+                    <option value="{{ wehr['id'] }}"
+                        {% if aktive_wehr|string == wehr['id']|string %}selected{% endif %}>
+                        {{ wehr['name'] }}
+                    </option>
+                {% endfor %}
+            </select>
+        </p>
+        {% endif %}
+
+        <p>
+            <label>Fahrzeugname:</label><br>
+            <input type="text" name="name" placeholder="z. B. LF 20" required>
+        </p>
+
+        <p>
+            <label>Schlüssel / URL-Kürzel:</label><br>
+            <input type="text" name="schluessel" placeholder="z. B. lf20" required>
+        </p>
+
+        <p>
+            <label>Typ:</label><br>
+            <select name="typ">
+                <option value="fahrzeug">Fahrzeug</option>
+                <option value="anhaenger">Anhänger</option>
+                <option value="lager">Lager/Bereich</option>
+                <option value="schlauch">Schlauchbestand</option>
+            </select>
+        </p>
+
+        <p>
+            <label>Kennzeichen:</label><br>
+            <input type="text" name="kennzeichen">
+        </p>
+
+        <p>
+            <label>TÜV-Termin:</label><br>
+            <input type="text" name="tuev_termin" placeholder="YYYY-MM-DD">
+        </p>
+
+        <p>
+            <label>SP-Termin:</label><br>
+            <input type="text" name="sp_termin" placeholder="YYYY-MM-DD">
+        </p>
+
+        <p>
+            <label>Schlauchwechsel:</label><br>
+            <input type="text" name="schlauchwechsel" placeholder="YYYY-MM-DD">
+        </p>
+
+        <p>
+            <button type="submit">Fahrzeug speichern</button>
+        </p>
+    </form>
+</div>
+
+{% endblock %}

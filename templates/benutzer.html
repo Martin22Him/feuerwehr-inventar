@@ -9,33 +9,27 @@
 
     <p>
         <a href="{{ url_for('benutzer_neu') }}" class="nav-button" style="display:inline-block; width:auto;">
-            Neuer Benutzer
+            Neuen Benutzer anlegen
         </a>
     </p>
 
     <div class="table-wrapper">
         <table class="inventar-tabelle">
             <tr>
-                <th>ID</th>
                 <th>Benutzername</th>
                 <th>Rolle</th>
+                <th>Wehr</th>
                 <th>Aktiv</th>
                 <th>Erstellt am</th>
-                <th>Aktionen</th>
+                <th>Aktion</th>
             </tr>
 
             {% for user in benutzer %}
             <tr>
-                <td>{{ user["id"] }}</td>
                 <td>{{ user["username"] }}</td>
                 <td>{{ user["role"] }}</td>
-                <td>
-                    {% if user["is_active"] %}
-                        Ja
-                    {% else %}
-                        Nein
-                    {% endif %}
-                </td>
+                <td>{{ user["wehr_name"] or "-" }}</td>
+                <td>{% if user["is_active"] %}Ja{% else %}Nein{% endif %}</td>
                 <td>{{ user["created_at"] }}</td>
                 <td>
                     <a href="{{ url_for('benutzer_bearbeiten', id=user['id']) }}">Bearbeiten</a>
