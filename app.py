@@ -109,6 +109,22 @@ def lese_dataframe(sql, params=()):
 
     return pd.DataFrame([dict(zeile) for zeile in daten])
 
+def lade_alle_kategorien_global():
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    db_execute(cursor, """
+        SELECT DISTINCT kategorie
+        FROM geraete
+        WHERE kategorie IS NOT NULL
+          AND kategorie <> ''
+        ORDER BY kategorie ASC
+    """)
+
+    daten = cursor.fetchall()
+    verbindung.close()
+
+    return [eintrag["kategorie"] for eintrag in daten]
 
 login_manager = LoginManager()
 login_manager.login_view = "login"
@@ -118,25 +134,37 @@ login_manager.init_app(app)
 
 
 class User(UserMixin):
-    def __init__(self, id, username, password_hash, role, is_active):
+    def __init__(self, id, username, password_hash, role, is_active, wehr_id=None, wehr_name=None):
         self.id = str(id)
         self.username = username
         self.password_hash = password_hash
         self.role = role
         self.active_flag = bool(is_active)
+        self.wehr_id = wehr_id
+        self.wehr_name = wehr_name
 
     @property
     def is_active(self):
         return self.active_flag
 
-
 def lade_user_nach_id(user_id):
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
-    db_execute(cursor, 
-        "SELECT id, username, password_hash, role, is_active FROM users WHERE id = ?",
-        (user_id,)
-    )
+
+    db_execute(cursor, """
+        SELECT 
+            u.id,
+            u.username,
+            u.password_hash,
+            u.role,
+            u.is_active,
+            u.wehr_id,
+            w.name AS wehr_name
+        FROM users u
+        LEFT JOIN wehren w ON u.wehr_id = w.id
+        WHERE u.id = ?
+    """, (user_id,))
+
     daten = cursor.fetchone()
     verbindung.close()
 
@@ -149,16 +177,29 @@ def lade_user_nach_id(user_id):
         daten["password_hash"],
         daten["role"],
         daten["is_active"],
+        daten["wehr_id"],
+        daten["wehr_name"],
     )
 
 
 def lade_user_nach_username(username):
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
-    db_execute(cursor, 
-        "SELECT id, username, password_hash, role, is_active FROM users WHERE username = ?",
-        (username,)
-    )
+
+    db_execute(cursor, """
+        SELECT 
+            u.id,
+            u.username,
+            u.password_hash,
+            u.role,
+            u.is_active,
+            u.wehr_id,
+            w.name AS wehr_name
+        FROM users u
+        LEFT JOIN wehren w ON u.wehr_id = w.id
+        WHERE u.username = ?
+    """, (username,))
+
     daten = cursor.fetchone()
     verbindung.close()
 
@@ -171,6 +212,8 @@ def lade_user_nach_username(username):
         daten["password_hash"],
         daten["role"],
         daten["is_active"],
+        daten["wehr_id"],
+        daten["wehr_name"],
     )
 
 def initialisiere_datenbank():
@@ -381,6 +424,100 @@ def lade_fahrzeugdaten(schluessel):
     verbindung.close()
     return fahrzeugdaten
 
+def lade_fahrzeuge_fuer_aktuelle_wehr():
+    aktive_wehr = get_aktive_wehr_id()
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    if aktive_wehr:
+        db_execute(cursor, """
+            SELECT *
+            FROM fahrzeuge
+            WHERE wehr_id = ?
+              AND aktiv = 1
+            ORDER BY name ASC
+        """, (aktive_wehr,))
+    else:
+        db_execute(cursor, """
+            SELECT *
+            FROM fahrzeuge
+            WHERE aktiv = 1
+            ORDER BY name ASC
+        """)
+
+    fahrzeuge = cursor.fetchall()
+    verbindung.close()
+
+    return fahrzeuge
+
+def lade_alle_wehren():
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    db_execute(cursor, """
+        SELECT id, name, kuerzel, aktiv
+        FROM wehren
+        WHERE aktiv = 1
+        ORDER BY name ASC
+    """)
+
+    wehren = cursor.fetchall()
+    verbindung.close()
+
+    return wehren
+
+
+def get_aktive_wehr_id():
+    if not current_user.is_authenticated:
+        return None
+
+    if current_user.role == "admin":
+        return session.get("aktive_wehr_id")
+
+    return current_user.wehr_id
+
+def wehr_filter_sql(tabellen_alias=""):
+    aktive_wehr = get_aktive_wehr_id()
+
+    if not aktive_wehr:
+        return "", []
+
+    prefix = f"{tabellen_alias}." if tabellen_alias else ""
+
+    return f" WHERE {prefix}wehr_id = ?", [aktive_wehr]
+
+def get_aktive_wehr_name():
+    if not current_user.is_authenticated:
+        return ""
+
+    if current_user.role == "admin":
+        aktive_id = session.get("aktive_wehr_id")
+
+        if not aktive_id:
+            return "Alle Wehren"
+
+        verbindung = hole_db_verbindung()
+        cursor = verbindung.cursor()
+
+        db_execute(cursor, "SELECT name FROM wehren WHERE id = ?", (aktive_id,))
+        wehr = cursor.fetchone()
+
+        verbindung.close()
+
+        if wehr:
+            return wehr["name"]
+
+        return "Alle Wehren"
+
+    return current_user.wehr_name or "Keine Wehr zugeordnet"
+
+def darf_geraet_sehen(geraet):
+    if current_user.role == "admin":
+        return True
+
+    return str(geraet["wehr_id"]) == str(current_user.wehr_id)
+
 def erstelle_pruefprotokoll_pdf(protokoll_id):
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
@@ -391,12 +528,15 @@ def erstelle_pruefprotokoll_pdf(protokoll_id):
             g.name AS geraet_name,
             g.interne_nummer,
             g.barcode,
+            g.hersteller,
             g.fahrzeug,
             g.fachnummer,
             g.kategorie,
+            w.name AS wehr_name,
             s.name AS schema_name
         FROM pruefprotokolle p
         JOIN geraete g ON p.geraet_id = g.id
+        LEFT JOIN wehren w ON p.wehr_id = w.id
         LEFT JOIN pruefschemata s ON p.schema_id = s.id
         WHERE p.id = ?
     """, (protokoll_id,))
@@ -422,15 +562,26 @@ def erstelle_pruefprotokoll_pdf(protokoll_id):
     styles = getSampleStyleSheet()
     elemente = []
 
-    elemente.append(Paragraph("<b>Freiwillige Feuerwehr Jesewitz</b>", styles["Title"]))
+    wehr_name = protokoll["wehr_name"] or "Feuerwehr"
+    pruefer = protokoll["pruefer"] or "-"
+    hersteller = protokoll["hersteller"] or "-"
+
+    elemente.append(
+        Paragraph(
+             f"<b>Prüfprotokoll – {wehr_name}</b>",
+             styles["Title"]
+        )
+    )
+
+    elemente.append(Spacer(1, 2))
+    elemente.append(Paragraph("gemäß DGUV Grundsatz 305-002, aktualisierte Fassung 2021.12", styles["Heading2"]))
     elemente.append(Spacer(1, 6))
-    elemente.append(Paragraph("<b>Prüfprotokoll gemäß DGUV 305-002, Fassung 2021.12</b>", styles["Heading2"]))
-    elemente.append(Spacer(1, 12))
 
 
     kopf_daten = [
         ["Protokoll-Nr.", str(protokoll_id)],
         ["Gerät", protokoll["geraet_name"]],
+        ["Hersteller", hersteller],
         ["Interne Nummer", protokoll["interne_nummer"]],
         ["Barcode", protokoll["barcode"]],
         ["Kategorie", protokoll["kategorie"]],
@@ -440,6 +591,7 @@ def erstelle_pruefprotokoll_pdf(protokoll_id):
         ["Prüfdatum", protokoll["pruefdatum"]],
         ["Nächste Prüfung", protokoll["ablaufdatum"]],
         ["Prüfstelle", protokoll["pruefstelle"]],
+        ["Prüfer", pruefer],
         ["Ergebnis", protokoll["ergebnis"]],
     ]
 
@@ -452,7 +604,7 @@ def erstelle_pruefprotokoll_pdf(protokoll_id):
         ("PADDING", (0, 0), (-1, -1), 6),
     ]))
     elemente.append(tabelle_kopf)
-    elemente.append(Spacer(1, 18))
+    elemente.append(Spacer(1, 4))
 
     elemente.append(Paragraph("Prüfpunkte", styles["Heading2"]))
 
@@ -474,11 +626,11 @@ def erstelle_pruefprotokoll_pdf(protokoll_id):
         ("PADDING", (0, 0), (-1, -1), 6),
     ]))
     elemente.append(tabelle_punkte)
-    elemente.append(Spacer(1, 18))
+    elemente.append(Spacer(1, 4))
 
     elemente.append(Paragraph("Bemerkung", styles["Heading2"]))
     elemente.append(Paragraph(str(protokoll["bemerkung"] or "-"), styles["BodyText"]))
-    elemente.append(Spacer(1, 30))
+    elemente.append(Spacer(1, 20))
 
     unterschrift = Table([
         ["Prüfer / Prüfstelle", "Unterschrift"],
@@ -567,6 +719,23 @@ def lade_pdf_zu_supabase_hoch(dateipfad, storage_pfad):
 
     return signed_url
 
+@app.context_processor
+def inject_navigation_context():
+    if current_user.is_authenticated:
+        return {
+            "alle_wehren": lade_alle_wehren(),
+            "aktive_wehr_id": get_aktive_wehr_id(),
+            "aktive_wehr_name": get_aktive_wehr_name(),
+            "nav_fahrzeuge": lade_fahrzeuge_fuer_aktuelle_wehr(),
+        }
+
+    return {
+        "alle_wehren": [],
+        "aktive_wehr_id": None,
+        "aktive_wehr_name": "",
+        "nav_fahrzeuge": [],
+    }
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if current_user.is_authenticated:
@@ -605,9 +774,16 @@ def benutzer_liste():
     cursor = verbindung.cursor()
 
     db_execute(cursor, """
-        SELECT id, username, role, is_active, created_at
-        FROM users
-        ORDER BY username ASC
+        SELECT 
+            u.id,
+            u.username,
+            u.role,
+            u.is_active,
+            u.created_at,
+            w.name AS wehr_name
+        FROM users u
+        LEFT JOIN wehren w ON u.wehr_id = w.id
+        ORDER BY u.username ASC
     """)
 
     benutzer = cursor.fetchall()
@@ -627,8 +803,9 @@ def benutzer_neu():
         password = request.form.get("password", "").strip()
         role = request.form.get("role", "benutzer").strip()
         is_active = 1 if request.form.get("is_active") == "1" else 0
+        wehr_id = request.form.get("wehr_id") or None
 
-        if username and password and role in ["admin", "geraetewart", "benutzer"]:
+        if username and password and role in ["admin", "geraetewart", "benutzer"] and wehr_id:
             from werkzeug.security import generate_password_hash
 
             verbindung = hole_db_verbindung()
@@ -636,13 +813,14 @@ def benutzer_neu():
 
             try:
                 db_execute(cursor, """
-                    INSERT INTO users (username, password_hash, role, is_active)
-                    VALUES (?, ?, ?, ?)
+                    INSERT INTO users (username, password_hash, role, is_active, wehr_id)
+                    VALUES (?, ?, ?, ?, ?)
                 """, (
                     username,
                     generate_password_hash(password),
                     role,
-                    is_active
+                    is_active,
+                    wehr_id
                 ))
 
                 verbindung.commit()
@@ -656,9 +834,13 @@ def benutzer_neu():
             finally:
                 verbindung.close()
         else:
-            flash("Bitte Benutzername, Passwort und gültige Rolle angeben.", "danger")
+            flash("Bitte Benutzername, Passwort, gültige Rolle und Wehr angeben.", "danger")
 
-    return render_template("benutzer_neu.html", form=form)
+    return render_template(
+        "benutzer_neu.html",
+        form=form,
+        wehren=lade_alle_wehren()
+    )
 
 
 @app.route("/benutzer/<int:id>/bearbeiten", methods=["GET", "POST"])
@@ -668,49 +850,72 @@ def benutzer_bearbeiten(id):
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
 
+    db_execute(cursor, """
+        SELECT id, username, role, is_active, wehr_id, created_at
+        FROM users
+        WHERE id = ?
+    """, (id,))
+    benutzer = cursor.fetchone()
+
+    if not benutzer:
+        verbindung.close()
+        return "Benutzer nicht gefunden."
+
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         role = request.form.get("role", "benutzer").strip()
+        wehr_id = request.form.get("wehr_id") or None
         is_active = 1 if request.form.get("is_active") == "1" else 0
+
+        if not username:
+            verbindung.close()
+            flash("Benutzername darf nicht leer sein.", "danger")
+            return redirect(url_for("benutzer_bearbeiten", id=id))
 
         if role not in ["admin", "geraetewart", "benutzer"]:
             verbindung.close()
             flash("Ungültige Rolle.", "danger")
             return redirect(url_for("benutzer_bearbeiten", id=id))
 
-        db_execute(cursor, """
-            UPDATE users
-            SET username = ?,
-                role = ?,
-                is_active = ?
-            WHERE id = ?
-        """, (
-            username,
-            role,
-            is_active,
-            id
-        ))
+        if not wehr_id:
+            verbindung.close()
+            flash("Bitte eine Wehr auswählen.", "danger")
+            return redirect(url_for("benutzer_bearbeiten", id=id))
 
-        verbindung.commit()
-        verbindung.close()
+        try:
+            db_execute(cursor, """
+                UPDATE users
+                SET username = ?,
+                    role = ?,
+                    wehr_id = ?,
+                    is_active = ?
+                WHERE id = ?
+            """, (
+                username,
+                role,
+                wehr_id,
+                is_active,
+                id
+            ))
 
-        flash("Benutzer wurde aktualisiert.", "success")
-        return redirect(url_for("benutzer_liste"))
+            verbindung.commit()
+            flash("Benutzer wurde aktualisiert.", "success")
+            return redirect(url_for("benutzer_liste"))
 
-    db_execute(cursor, """
-        SELECT id, username, role, is_active, created_at
-        FROM users
-        WHERE id = ?
-    """, (id,))
+        except Exception:
+            verbindung.rollback()
+            flash("Benutzer konnte nicht gespeichert werden. Existiert der Benutzername bereits?", "danger")
 
-    benutzer = cursor.fetchone()
+        finally:
+            verbindung.close()
+
     verbindung.close()
 
-    if not benutzer:
-        return "Benutzer nicht gefunden."
-
-    return render_template("benutzer_bearbeiten.html", benutzer=benutzer)
-
+    return render_template(
+        "benutzer_bearbeiten.html",
+        benutzer=benutzer,
+        wehren=lade_alle_wehren()
+    )
 
 @app.route("/benutzer/<int:id>/passwort", methods=["GET", "POST"])
 @login_required
@@ -728,30 +933,40 @@ def benutzer_passwort(id):
 
     if request.method == "POST":
         neues_passwort = request.form.get("password", "").strip()
+        passwort_wiederholen = request.form.get("password_wiederholen", "").strip()
 
-        if neues_passwort:
-            from werkzeug.security import generate_password_hash
-
-            db_execute(cursor, """
-                UPDATE users
-                SET password_hash = ?
-                WHERE id = ?
-            """, (
-                generate_password_hash(neues_passwort),
-                id
-            ))
-
-            verbindung.commit()
+        if not neues_passwort:
+            flash("Bitte ein neues Passwort eingeben.", "danger")
             verbindung.close()
+            return redirect(url_for("benutzer_passwort", id=id))
 
-            flash("Passwort wurde neu gesetzt.", "success")
-            return redirect(url_for("benutzer_liste"))
+        if neues_passwort != passwort_wiederholen:
+            flash("Die Passwörter stimmen nicht überein.", "danger")
+            verbindung.close()
+            return redirect(url_for("benutzer_passwort", id=id))
 
-        flash("Bitte ein neues Passwort eingeben.", "danger")
+        from werkzeug.security import generate_password_hash
+
+        db_execute(cursor, """
+            UPDATE users
+            SET password_hash = ?
+            WHERE id = ?
+        """, (
+            generate_password_hash(neues_passwort),
+            id
+        ))
+
+        verbindung.commit()
+        verbindung.close()
+
+        flash("Passwort wurde neu gesetzt.", "success")
+        return redirect(url_for("benutzer_liste"))
 
     verbindung.close()
 
     return render_template("benutzer_passwort.html", benutzer=benutzer)
+
+
 
 @app.route("/pruefschemata")
 @login_required
@@ -974,10 +1189,26 @@ def pruefpunkt_bearbeiten(id):
 def startseite():
     df = lade_geraete_aus_db()
 
-    # Ablaufdatum in Datumsformat umwandeln
+    aktive_wehr = get_aktive_wehr_id()
+
+    
+    if aktive_wehr and "wehr_id" in df.columns:
+        df["wehr_id"] = pd.to_numeric(df["wehr_id"], errors="coerce")
+        df = df[df["wehr_id"] == int(aktive_wehr)]
+
+    if df.empty:
+        return render_template(
+            "start.html",
+            anzahl_rot=0,
+            anzahl_gelb=0,
+            anzahl_gruen=0,
+            anzahl_blau=0,
+            naechste_pruefungen=[],
+            geraete_in_pruefung=[]
+        )
+
     df["ablaufdatum_sort"] = pd.to_datetime(df["ablaufdatum"], errors="coerce")
 
-    # Nur Geräte mit gültigem Ablaufdatum betrachten
     pruef_df = df[df["ablaufdatum_sort"].notna()].copy()
 
     heute = pd.Timestamp.today().normalize()
@@ -992,7 +1223,13 @@ def startseite():
 
     blau_df = df[df["pruefstatus"] == "in Prüfung"]
 
-    naechste_pruefungen = pruef_df.sort_values("ablaufdatum_sort").head(5).to_dict(orient="records")
+    geraete_in_pruefung = blau_df.to_dict(orient="records")
+
+    naechste_pruefungen = (
+        pruef_df.sort_values("ablaufdatum_sort")
+        .head(5)
+        .to_dict(orient="records")
+    )
 
     return render_template(
         "start.html",
@@ -1000,13 +1237,20 @@ def startseite():
         anzahl_gelb=len(gelb_df),
         anzahl_gruen=len(gruen_df),
         anzahl_blau=len(blau_df),
-        naechste_pruefungen=naechste_pruefungen
+        naechste_pruefungen=naechste_pruefungen,
+        geraete_in_pruefung=geraete_in_pruefung
     )
 
 @app.route("/geraete")
 @login_required
 def geraete():
     df = lade_geraete_aus_db()
+
+    aktive_wehr = get_aktive_wehr_id()
+
+    if aktive_wehr and "wehr_id" in df.columns:
+        df["wehr_id"] = pd.to_numeric(df["wehr_id"], errors="coerce")
+        df = df[df["wehr_id"] == int(aktive_wehr)]
 
     fahrzeug = request.args.get("fahrzeug", "")
     kategorie = request.args.get("kategorie", "")
@@ -1052,6 +1296,12 @@ def geraete():
 def prueftermine():
     df = lade_geraete_aus_db()
 
+    aktive_wehr = get_aktive_wehr_id()
+
+    if aktive_wehr and "wehr_id" in df.columns:
+        df["wehr_id"] = pd.to_numeric(df["wehr_id"], errors="coerce")
+        df = df[df["wehr_id"] == int(aktive_wehr)]
+
     fahrzeug = request.args.get("fahrzeug", "")
     kategorie = request.args.get("kategorie", "")
     suche = request.args.get("suche", "")
@@ -1081,7 +1331,20 @@ def prueftermine():
     df["ablaufdatum_sort"] = pd.to_datetime(df["ablaufdatum"], errors="coerce")
     df = df[df["ablaufdatum_sort"].notna()]
     df = df.sort_values("ablaufdatum_sort")
-    
+
+    if df.empty:
+         daten = []
+
+         return render_template(
+             "prueftermine.html",
+             daten=daten,
+             fahrzeug=fahrzeug,
+             kategorie=kategorie,
+             suche=suche,
+             fahrzeuge=alle_fahrzeuge,
+             kategorien=alle_kategorien
+         )
+
     heute = pd.Timestamp.today().normalize()
     in_30_tagen = heute + pd.Timedelta(days=30)
 
@@ -1112,35 +1375,168 @@ def prueftermine():
 @app.route("/fahrzeug/<name>")
 @login_required
 def fahrzeug(name):
-    df = lade_geraete_aus_db()
+    aktive_wehr = get_aktive_wehr_id()
 
-    mapping = {
-        "tlf": ("TLF", "Tanklöschfahrzeug", "fahrzeug"),
-        "lf": ("LF", "Löschgruppenfahrzeug", "fahrzeug"),
-        "schlauchanhaenger": ("SA", "Schlauchanhänger", "schlauch"),
-        "ts": ("TSA", "Tragkraftspritzenanhänger", "none"),
-        "boot": ("BoA", "Boot-Anhänger", "none"),
-    }
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
 
-    if name not in mapping:
-        return f"Unbekanntes Fahrzeug: {name}"
+    if aktive_wehr:
+        db_execute(cursor, """
+            SELECT *
+            FROM fahrzeuge
+            WHERE schluessel = ?
+              AND wehr_id = ?
+              AND aktiv = 1
+        """, (name, aktive_wehr))
+    else:
+        db_execute(cursor, """
+            SELECT *
+            FROM fahrzeuge
+            WHERE schluessel = ?
+              AND aktiv = 1
+        """, (name,))
 
-    fahrzeug_name, titel, typ = mapping[name]
+    fahrzeugdaten = cursor.fetchone()
 
-    df = df[df["fahrzeug"] == fahrzeug_name]
-    daten = df.to_dict(orient="records")
+    if not fahrzeugdaten:
+        verbindung.close()
+        return f"Fahrzeug mit Schlüssel '{name}' nicht gefunden."
 
-    fahrzeugdaten = lade_fahrzeugdaten(name)
+    if aktive_wehr:
+        db_execute(cursor, """
+            SELECT *
+            FROM geraete
+            WHERE fahrzeug_id = ?
+              AND wehr_id = ?
+            ORDER BY fachnummer ASC, name ASC
+        """, (fahrzeugdaten["id"], aktive_wehr))
+    else:
+        db_execute(cursor, """
+            SELECT *
+            FROM geraete
+            WHERE fahrzeug_id = ?
+            ORDER BY fachnummer ASC, name ASC
+        """, (fahrzeugdaten["id"],))
+
+    daten = cursor.fetchall()
+    verbindung.close()
 
     return render_template(
         "fahrzeug.html",
         daten=daten,
-        titel=titel,
-        typ=typ,
-        schluessel=name,
+        titel=fahrzeugdaten["name"],
+        typ=fahrzeugdaten["typ"],
+        schluessel=fahrzeugdaten["schluessel"],
         fahrzeugdaten=fahrzeugdaten
     )
 
+@app.route("/fahrzeuge/neu", methods=["GET", "POST"])
+@login_required
+@geraetewart_required
+def fahrzeug_neu():
+    wehren = lade_alle_wehren()
+    aktive_wehr = get_aktive_wehr_id()
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        schluessel = request.form.get("schluessel", "").strip().lower()
+        typ = request.form.get("typ", "fahrzeug").strip()
+        kennzeichen = request.form.get("kennzeichen", "").strip()
+        tuev_termin = request.form.get("tuev_termin", "").strip()
+        sp_termin = request.form.get("sp_termin", "").strip()
+        schlauchwechsel = request.form.get("schlauchwechsel", "").strip()
+
+        if current_user.role == "admin":
+            wehr_id = request.form.get("wehr_id") or aktive_wehr
+
+            if not wehr_id:
+                flash("Bitte eine Wehr auswählen.", "danger")
+                return redirect(url_for("fahrzeug_neu"))
+        else:
+            wehr_id = current_user.wehr_id
+
+        if not name or not schluessel:
+            flash("Name und Schlüssel sind Pflichtfelder.", "danger")
+            return redirect(url_for("fahrzeug_neu"))
+
+        verbindung = hole_db_verbindung()
+        cursor = verbindung.cursor()
+
+        try:
+            db_execute(cursor, """
+                INSERT INTO fahrzeuge (
+                    wehr_id,
+                    schluessel,
+                    name,
+                    typ,
+                    kennzeichen,
+                    tuev_termin,
+                    sp_termin,
+                    schlauchwechsel,
+                    aktiv
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1)
+            """, (
+                wehr_id,
+                schluessel,
+                name,
+                typ,
+                kennzeichen,
+                tuev_termin,
+                sp_termin,
+                schlauchwechsel
+            ))
+
+            verbindung.commit()
+            flash("Fahrzeug wurde angelegt.", "success")
+            return redirect(url_for("startseite"))
+
+        except Exception:
+            verbindung.rollback()
+            flash("Fahrzeug konnte nicht angelegt werden. Schlüssel existiert eventuell bereits.", "danger")
+
+        finally:
+            verbindung.close()
+
+    return render_template(
+        "fahrzeug_neu.html",
+        wehren=wehren,
+        aktive_wehr=aktive_wehr
+    )
+
+@app.route("/fahrzeuge")
+@login_required
+@geraetewart_required
+def fahrzeuge_verwalten():
+    aktive_wehr = get_aktive_wehr_id()
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    if aktive_wehr:
+        db_execute(cursor, """
+            SELECT 
+                f.*,
+                w.name AS wehr_name
+            FROM fahrzeuge f
+            LEFT JOIN wehren w ON f.wehr_id = w.id
+            WHERE f.wehr_id = ?
+            ORDER BY f.name ASC
+        """, (aktive_wehr,))
+    else:
+        db_execute(cursor, """
+            SELECT 
+                f.*,
+                w.name AS wehr_name
+            FROM fahrzeuge f
+            LEFT JOIN wehren w ON f.wehr_id = w.id
+            ORDER BY w.name ASC, f.name ASC
+        """)
+
+    fahrzeuge = cursor.fetchall()
+    verbindung.close()
+
+    return render_template("fahrzeuge_verwalten.html", fahrzeuge=fahrzeuge)
 
 @app.route("/kleidung")
 @login_required
@@ -1151,17 +1547,17 @@ def kleidung():
 @login_required
 @geraetewart_required
 def geraet_neu():
-    fahrzeuge = [
-        "TLF",
-        "LF",
-        "Lager",
-        "Schlauchanhänger",
-        "TS-Anhänger",
-        "Boot-Anhänger"
-    ]
+    fahrzeug_datensaetze = lade_fahrzeuge_fuer_aktuelle_wehr()
+    fahrzeuge = [fahrzeug["name"] for fahrzeug in fahrzeug_datensaetze]
 
     df = lade_geraete_aus_db()
-    kategorien = sorted([k for k in df["kategorie"].dropna().unique() if str(k).strip() != ""])
+    aktive_wehr = get_aktive_wehr_id()
+
+    if aktive_wehr and "wehr_id" in df.columns:
+        df["wehr_id"] = pd.to_numeric(df["wehr_id"], errors="coerce")
+        df = df[df["wehr_id"] == int(aktive_wehr)]
+
+    kategorien = lade_alle_kategorien_global()
 
     fachnummern = {
         "TLF": ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "Dach", "Mannschaftsraum", "Gruppenführerplatz"],
@@ -1171,6 +1567,15 @@ def geraet_neu():
         "Boot-Anhänger": ["Front", "Heck", "Dach"],
         "Lager": ["Regal"]
     }
+
+    for fahrzeug in fahrzeuge:
+        if fahrzeug not in fachnummern:
+            fachnummern[fahrzeug] = [
+                "G1", "G2", "G3", "G4", "G5", "G6", "G7",
+                "Dach", "Mannschaftsraum", "Gruppenführerplatz"
+            ]
+
+    wehren = lade_alle_wehren()
 
     if request.method == "POST":
         interne_nummer = request.form.get("interne_nummer", "")
@@ -1185,6 +1590,15 @@ def geraet_neu():
         hersteller = request.form.get("hersteller", "")
         barcode = request.form.get("barcode", "")
 
+        if current_user.role == "admin":
+            wehr_id = request.form.get("wehr_id") or aktive_wehr
+
+            if not wehr_id:
+                flash("Bitte eine Wehr auswählen.", "danger")
+                return redirect(url_for("geraet_neu"))
+        else:
+            wehr_id = current_user.wehr_id
+
         try:
             anzahl = int(anzahl)
         except ValueError:
@@ -1192,6 +1606,23 @@ def geraet_neu():
 
         verbindung = hole_db_verbindung()
         cursor = verbindung.cursor()
+
+        db_execute(cursor, """
+            SELECT id
+            FROM fahrzeuge
+            WHERE name = ?
+              AND wehr_id = ?
+              AND aktiv = 1
+        """, (fahrzeug, wehr_id))
+
+        fahrzeug_datensatz = cursor.fetchone()
+
+        if not fahrzeug_datensatz:
+            verbindung.close()
+            flash("Das ausgewählte Fahrzeug wurde nicht gefunden.", "danger")
+            return redirect(url_for("geraet_neu"))
+
+        fahrzeug_id = fahrzeug_datensatz["id"]
 
         db_execute(cursor, """
             INSERT INTO geraete (
@@ -1205,9 +1636,11 @@ def geraet_neu():
                 anzahl,
                 bemerkung,
                 hersteller,
-                barcode
+                barcode,
+                wehr_id,
+                fahrzeug_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             interne_nummer,
             name,
@@ -1219,33 +1652,32 @@ def geraet_neu():
             anzahl,
             bemerkung,
             hersteller,
-            barcode
+            barcode,
+            wehr_id,
+            fahrzeug_id
         ))
 
         verbindung.commit()
         verbindung.close()
 
+        flash("Gerät wurde angelegt.", "success")
         return redirect(url_for("geraete"))
 
     return render_template(
         "geraet_neu.html",
         fahrzeuge=fahrzeuge,
         kategorien=kategorien,
-        fachnummern=fachnummern
+        fachnummern=fachnummern,
+        wehren=wehren,
+        aktive_wehr=aktive_wehr
     )
 
 @app.route("/geraet/<int:id>/bearbeiten", methods=["GET", "POST"])
 @login_required
 @geraetewart_required
 def geraet_bearbeiten(id):
-    fahrzeuge = [
-        "TLF",
-        "LF",
-        "Lager",
-        "Schlauchanhänger",
-        "TS-Anhänger",
-        "Boot-Anhänger"
-    ]
+    fahrzeug_datensaetze = lade_fahrzeuge_fuer_aktuelle_wehr()
+    fahrzeuge = [fahrzeug["name"] for fahrzeug in fahrzeug_datensaetze]
 
     df = lade_geraete_aus_db()
     kategorien = sorted([k for k in df["kategorie"].dropna().unique() if str(k).strip() != ""])
@@ -1258,6 +1690,9 @@ def geraet_bearbeiten(id):
         "Boot-Anhänger": ["Front", "Heck", "Dach"],
         "Lager": ["Regal"]
     }
+    for fahrzeug in fahrzeuge:
+       if fahrzeug not in fachnummern:
+           fachnummern[fahrzeug] = ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "Dach", "Mannschaftsraum", "Gruppenführerplatz"]
 
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
@@ -1321,6 +1756,10 @@ def geraet_bearbeiten(id):
     if geraet is None:
         return f"Gerät mit ID {id} nicht gefunden."
 
+    if not darf_geraet_sehen(geraet):
+        verbindung.close()
+        abort(403)
+
     return render_template(
         "geraet_bearbeiten.html",
         geraet=geraet,
@@ -1380,9 +1819,29 @@ def geraet_detail(id):
 @app.route("/pruefauftrag")
 @login_required
 def pruefauftrag():
-    df = lese_dataframe("SELECT * FROM geraete WHERE pruefstatus = 'in Prüfung'")
+    aktive_wehr = get_aktive_wehr_id()
 
-    daten = df.to_dict(orient="records")
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    if aktive_wehr:
+        db_execute(cursor, """
+            SELECT *
+            FROM geraete
+            WHERE pruefstatus = ?
+              AND wehr_id = ?
+            ORDER BY pruefauftrag_datum DESC, name ASC
+        """, ("in Prüfung", aktive_wehr))
+    else:
+        db_execute(cursor, """
+            SELECT *
+            FROM geraete
+            WHERE pruefstatus = ?
+            ORDER BY pruefauftrag_datum DESC, name ASC
+        """, ("in Prüfung",))
+
+    daten = cursor.fetchall()
+    verbindung.close()
 
     return render_template("pruefauftrag.html", daten=daten)
 
@@ -1393,6 +1852,22 @@ def pruefauftrag():
 def geraet_in_pruefung(id):
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
+
+    db_execute(cursor, """
+        SELECT *
+        FROM geraete
+        WHERE id = ?
+    """, (id,))
+
+    geraet = cursor.fetchone()
+
+    if geraet is None:
+        verbindung.close()
+        return f"Gerät mit ID {id} nicht gefunden."
+
+    if not darf_geraet_sehen(geraet):
+        verbindung.close()
+        abort(403)
 
     heute = datetime.now().strftime("%Y-%m-%d")
 
@@ -1421,6 +1896,10 @@ def geraet_pruefung_abschliessen(id):
     if geraet is None:
         verbindung.close()
         return f"Gerät mit ID {id} nicht gefunden."
+
+    if not darf_geraet_sehen(geraet):
+        verbindung.close()
+        abort(403)
 
     db_execute(cursor, """
         SELECT *
@@ -1478,9 +1957,11 @@ def geraet_pruefung_abschliessen(id):
                 ablaufdatum,
                 pruefstelle,
                 ergebnis,
-                bemerkung
+                bemerkung,
+                pruefer,
+                wehr_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             id,
             schema_id,
@@ -1488,7 +1969,9 @@ def geraet_pruefung_abschliessen(id):
             ablaufdatum,
             pruefstelle,
             ergebnis,
-            bemerkung
+            bemerkung,
+            current_user.username,
+            geraet["wehr_id"]
         ))
 
         if USING_POSTGRES:
@@ -1580,18 +2063,22 @@ def pruefprotokoll_detail(id):
 
     db_execute(cursor, """
         SELECT 
-            p.*,
-            g.name AS geraet_name,
-            g.interne_nummer,
-            g.barcode,
-            g.fahrzeug,
-            g.fachnummer,
-            g.kategorie,
-            s.name AS schema_name
-        FROM pruefprotokolle p
-        JOIN geraete g ON p.geraet_id = g.id
-        LEFT JOIN pruefschemata s ON p.schema_id = s.id
-        WHERE p.id = ?
+             p.*,
+             g.name AS geraet_name,
+             g.interne_nummer,
+             g.barcode,
+             g.hersteller,
+             g.fahrzeug,
+             g.fachnummer,
+             g.kategorie,
+             w.name AS wehr_name,
+             s.name AS schema_name,
+             p.pruefer
+         FROM pruefprotokolle p
+         JOIN geraete g ON p.geraet_id = g.id
+         LEFT JOIN wehren w ON p.wehr_id = w.id
+         LEFT JOIN pruefschemata s ON p.schema_id = s.id
+         WHERE p.id = ?
     """, (id,))
     protokoll = cursor.fetchone()
 
@@ -1669,6 +2156,7 @@ def pruefprotokoll_pdf_oeffnen(id):
 @login_required
 def barcode_suche():
     barcode = request.args.get("barcode", "").strip()
+    aktive_wehr = get_aktive_wehr_id()
 
     gefundenes_geraet = None
 
@@ -1676,9 +2164,21 @@ def barcode_suche():
         verbindung = hole_db_verbindung()
         cursor = verbindung.cursor()
 
-        db_execute(cursor, "SELECT * FROM geraete WHERE barcode = ?", (barcode,))
-        gefundenes_geraet = cursor.fetchone()
+        if aktive_wehr:
+            db_execute(cursor, """
+                SELECT *
+                FROM geraete
+                WHERE barcode = ?
+                  AND wehr_id = ?
+            """, (barcode, aktive_wehr))
+        else:
+            db_execute(cursor, """
+                SELECT *
+                FROM geraete
+                WHERE barcode = ?
+            """, (barcode,))
 
+        gefundenes_geraet = cursor.fetchone()
         verbindung.close()
 
     return render_template("barcode_suche.html", barcode=barcode, geraet=gefundenes_geraet)
@@ -1691,6 +2191,7 @@ def barcode_sammeln():
 
     fehlermeldung = ""
     gefundenes_geraet = None
+    aktive_wehr = get_aktive_wehr_id()
 
     if request.method == "POST":
         barcode = request.form.get("barcode", "").strip()
@@ -1699,9 +2200,21 @@ def barcode_sammeln():
             verbindung = hole_db_verbindung()
             cursor = verbindung.cursor()
 
-            db_execute(cursor, "SELECT * FROM geraete WHERE barcode = ?", (barcode,))
-            geraet = cursor.fetchone()
+            if aktive_wehr:
+                db_execute(cursor, """
+                    SELECT *
+                    FROM geraete
+                    WHERE barcode = ?
+                      AND wehr_id = ?
+                """, (barcode, aktive_wehr))
+            else:
+                db_execute(cursor, """
+                    SELECT *
+                    FROM geraete
+                    WHERE barcode = ?
+                """, (barcode,))
 
+            geraet = cursor.fetchone()
             verbindung.close()
 
             if geraet:
@@ -1717,13 +2230,14 @@ def barcode_sammeln():
                         "fahrzeug": geraet["fahrzeug"],
                         "fachnummer": geraet["fachnummer"],
                         "pruefstatus": geraet["pruefstatus"],
-                        "barcode": geraet["barcode"]
+                        "barcode": geraet["barcode"],
+                        "wehr_id": geraet["wehr_id"]
                     })
                     session.modified = True
                 else:
                     fehlermeldung = "Gerät ist bereits in der Sammelliste."
             else:
-                fehlermeldung = "Kein Gerät zu diesem Barcode gefunden."
+                fehlermeldung = "Kein Gerät zu diesem Barcode in der aktuellen Wehr gefunden."
 
     pruefstellen = lade_pruefstellen()
 
@@ -1756,6 +2270,7 @@ def barcode_sammeln_alle_in_pruefung():
         return redirect(url_for("barcode_sammeln"))
 
     pruefstelle = request.form.get("pruefstelle", "").strip()
+    aktive_wehr = get_aktive_wehr_id()
 
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
@@ -1763,13 +2278,23 @@ def barcode_sammeln_alle_in_pruefung():
     heute = datetime.now().strftime("%Y-%m-%d")
 
     for eintrag in session["barcode_liste"]:
-        db_execute(cursor, """
-            UPDATE geraete
-            SET pruefstatus = 'in Prüfung',
-                pruefauftrag_datum = ?,
-                pruefstelle = ?
-            WHERE id = ?
-        """, (heute, pruefstelle, eintrag["id"]))
+        if aktive_wehr:
+            db_execute(cursor, """
+                UPDATE geraete
+                SET pruefstatus = 'in Prüfung',
+                    pruefauftrag_datum = ?,
+                    pruefstelle = ?
+                WHERE id = ?
+                  AND wehr_id = ?
+            """, (heute, pruefstelle, eintrag["id"], aktive_wehr))
+        else:
+            db_execute(cursor, """
+                UPDATE geraete
+                SET pruefstatus = 'in Prüfung',
+                    pruefauftrag_datum = ?,
+                    pruefstelle = ?
+                WHERE id = ?
+            """, (heute, pruefstelle, eintrag["id"]))
 
     verbindung.commit()
     verbindung.close()
@@ -1822,49 +2347,158 @@ def pruefstellen_verwalten():
 @login_required
 @geraetewart_required
 def fahrzeug_bearbeiten(schluessel):
+    aktive_wehr = get_aktive_wehr_id()
+
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
 
-    db_execute(cursor, "SELECT * FROM fahrzeuge WHERE schluessel = ?", (schluessel,))
-    fahrzeugdaten = cursor.fetchone()
+    if aktive_wehr:
+        db_execute(cursor, """
+            SELECT *
+            FROM fahrzeuge
+            WHERE schluessel = ?
+              AND wehr_id = ?
+        """, (schluessel, aktive_wehr))
+    else:
+        db_execute(cursor, """
+            SELECT *
+            FROM fahrzeuge
+            WHERE schluessel = ?
+        """, (schluessel,))
 
-    if fahrzeugdaten is None:
+    fahrzeug = cursor.fetchone()
+
+    if not fahrzeug:
         verbindung.close()
-        return f"Fahrzeug mit Schlüssel '{schluessel}' nicht gefunden."
+        return "Fahrzeug nicht gefunden."
 
     if request.method == "POST":
-        tuev_termin = request.form.get("tuev_termin", "")
-        sp_termin = request.form.get("sp_termin", "")
-        kennzeichen = request.form.get("kennzeichen", "")
-        schlauchwechsel = request.form.get("schlauchwechsel", "")
+        name = request.form.get("name", "").strip()
+        neuer_schluessel = request.form.get("schluessel", "").strip().lower()
+        typ = request.form.get("typ", "fahrzeug").strip()
+        kennzeichen = request.form.get("kennzeichen", "").strip()
+        tuev_termin = request.form.get("tuev_termin", "").strip()
+        sp_termin = request.form.get("sp_termin", "").strip()
+        schlauchwechsel = request.form.get("schlauchwechsel", "").strip()
+        aktiv = 1 if request.form.get("aktiv") == "1" else 0
+
+        if not name or not neuer_schluessel:
+            verbindung.close()
+            flash("Name und Schlüssel sind Pflichtfelder.", "danger")
+            return redirect(url_for("fahrzeug_bearbeiten", schluessel=schluessel))
 
         db_execute(cursor, """
             UPDATE fahrzeuge
-            SET tuev_termin = ?,
-                sp_termin = ?,
+            SET name = ?,
+                schluessel = ?,
+                typ = ?,
                 kennzeichen = ?,
-                schlauchwechsel = ?
-            WHERE schluessel = ?
+                tuev_termin = ?,
+                sp_termin = ?,
+                schlauchwechsel = ?,
+                aktiv = ?
+            WHERE id = ?
         """, (
+            name,
+            neuer_schluessel,
+            typ,
+            kennzeichen,
             tuev_termin,
             sp_termin,
-            kennzeichen,
             schlauchwechsel,
-            schluessel
+            aktiv,
+            fahrzeug["id"]
+        ))
+
+        db_execute(cursor, """
+            UPDATE geraete
+            SET fahrzeug = ?
+            WHERE fahrzeug_id = ?
+        """, (
+            name,
+            fahrzeug["id"]
         ))
 
         verbindung.commit()
         verbindung.close()
 
-        return redirect(url_for("fahrzeug", name=schluessel))
+        flash("Fahrzeug wurde aktualisiert.", "success")
+        return redirect(url_for("fahrzeuge_verwalten"))
 
     verbindung.close()
 
     return render_template(
-        "fahrzeug_bearbeiten.html",
-        fahrzeugdaten=fahrzeugdaten,
-        schluessel=schluessel
+         "fahrzeug_bearbeiten.html",
+          fahrzeug=fahrzeug
     )
+
+@app.route("/wehr/wechseln/<int:wehr_id>")
+@login_required
+@admin_required
+def wehr_wechseln(wehr_id):
+    session["aktive_wehr_id"] = wehr_id
+    flash("Wehr wurde gewechselt.", "success")
+    return redirect(url_for("startseite"))
+
+
+@app.route("/wehr/alle")
+@login_required
+@admin_required
+def wehr_alle():
+    session.pop("aktive_wehr_id", None)
+    flash("Alle Wehren werden angezeigt.", "success")
+    return redirect(url_for("startseite"))
+
+@app.route("/wehren")
+@login_required
+@admin_required
+def wehren_liste():
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    db_execute(cursor, """
+        SELECT id, name, kuerzel, aktiv, erstellt_am
+        FROM wehren
+        ORDER BY name ASC
+    """)
+    wehren = cursor.fetchall()
+
+    verbindung.close()
+
+    return render_template("wehren.html", wehren=wehren)
+
+
+@app.route("/wehren/neu", methods=["GET", "POST"])
+@login_required
+@admin_required
+def wehr_neu():
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        kuerzel = request.form.get("kuerzel", "").strip().lower()
+        aktiv = 1 if request.form.get("aktiv") == "1" else 0
+
+        if not name or not kuerzel:
+            flash("Name und Kürzel sind Pflichtfelder.", "danger")
+            return redirect(url_for("wehr_neu"))
+
+        verbindung = hole_db_verbindung()
+        cursor = verbindung.cursor()
+
+        try:
+            db_execute(cursor, """
+                INSERT INTO wehren (name, kuerzel, aktiv)
+                VALUES (?, ?, ?)
+            """, (name, kuerzel, aktiv))
+            verbindung.commit()
+            flash("Wehr wurde angelegt.", "success")
+            return redirect(url_for("wehren_liste"))
+        except Exception:
+            verbindung.rollback()
+            flash("Wehr konnte nicht angelegt werden. Kürzel oder Name existiert vermutlich bereits.", "danger")
+        finally:
+            verbindung.close()
+
+    return render_template("wehr_neu.html")
 
 if __name__ == "__main__":
     app.run(debug=True)
