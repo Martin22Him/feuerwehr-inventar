@@ -1493,7 +1493,8 @@ def fahrzeug_neu():
 
         except Exception:
             verbindung.rollback()
-            flash("Fahrzeug konnte nicht angelegt werden. Schlüssel existiert eventuell bereits.", "danger")
+            print("FEHLER fahrzeug_neu:", e)
+            flash(f"Fahrzeug konnte nicht angelegt werden: {e}", "danger")
 
         finally:
             verbindung.close()
