@@ -1560,21 +1560,34 @@ def geraet_neu():
 
     kategorien = lade_alle_kategorien_global()
 
-    fachnummern = {
-        "TLF": ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "Dach", "Mannschaftsraum", "Gruppenführerplatz"],
-        "LF": ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "Dach", "Mannschaftsraum", "Gruppenführerplatz"],
-        "Schlauchanhänger": ["Front", "Heck", "Dach"],
-        "TS-Anhänger": ["Front", "Heck", "Dach"],
-        "Boot-Anhänger": ["Front", "Heck", "Dach"],
-        "Lager": ["Regal"]
-    }
+    fachnummern = {}
 
     for fahrzeug in fahrzeuge:
-        if fahrzeug not in fachnummern:
-            fachnummern[fahrzeug] = [
-                "G1", "G2", "G3", "G4", "G5", "G6", "G7",
+    fahrzeug_fachnummern = []
+
+    if not df.empty and "fahrzeug" in df.columns and "fachnummer" in df.columns:
+        fahrzeug_df = df[df["fahrzeug"] == fahrzeug]
+
+        fahrzeug_fachnummern = sorted([
+            str(f).strip()
+            for f in fahrzeug_df["fachnummer"].dropna().unique()
+            if str(f).strip() != ""
+        ])
+
+    if not fahrzeug_fachnummern:
+        if fahrzeug == "Lager":
+            fahrzeug_fachnummern = ["Regal"]
+
+        elif "Anhänger" in fahrzeug or fahrzeug in ["SA", "TSA", "BoA"]:
+            fahrzeug_fachnummern = ["Front", "Heck", "Dach"]
+
+        else:
+            fahrzeug_fachnummern = [
+                "G1", "G2", "G3", "G4", "G5", "G6", "G7", "GR"
                 "Dach", "Mannschaftsraum", "Gruppenführerplatz"
             ]
+
+    fachnummern[fahrzeug] = fahrzeug_fachnummern
 
     wehren = lade_alle_wehren()
 
