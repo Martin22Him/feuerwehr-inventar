@@ -1690,26 +1690,58 @@ def geraet_neu():
 @login_required
 @geraetewart_required
 def geraet_bearbeiten(id):
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    db_execute(cursor, "SELECT * FROM geraete WHERE id = ?", (id,))
+    geraet = cursor.fetchone()
+
+    if geraet is None:
+        verbindung.close()
+        return f"Gerät mit ID {id} nicht gefunden."
+
+    if not darf_geraet_sehen(geraet):
+        verbindung.close()
+        abort(403)
+
     fahrzeug_datensaetze = lade_fahrzeuge_fuer_aktuelle_wehr()
     fahrzeuge = [fahrzeug["name"] for fahrzeug in fahrzeug_datensaetze]
 
     df = lade_geraete_aus_db()
-    kategorien = sorted([k for k in df["kategorie"].dropna().unique() if str(k).strip() != ""])
+    aktive_wehr = get_aktive_wehr_id()
 
-    fachnummern = {
-        "TLF": ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "Dach", "Mannschaftsraum", "Gruppenführerplatz"],
-        "LF": ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "Dach", "Mannschaftsraum", "Gruppenführerplatz"],
-        "Schlauchanhänger": ["Front", "Heck", "Dach"],
-        "TS-Anhänger": ["Front", "Heck", "Dach"],
-        "Boot-Anhänger": ["Front", "Heck", "Dach"],
-        "Lager": ["Regal"]
-    }
+    if aktive_wehr and "wehr_id" in df.columns:
+        df["wehr_id"] = pd.to_numeric(df["wehr_id"], errors="coerce")
+        df = df[df["wehr_id"] == int(aktive_wehr)]
+
+    kategorien = lade_alle_kategorien_global()
+
+    fachnummern = {}
+
     for fahrzeug in fahrzeuge:
-       if fahrzeug not in fachnummern:
-           fachnummern[fahrzeug] = ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "Dach", "Mannschaftsraum", "Gruppenführerplatz"]
+        fahrzeug_fachnummern = []
 
-    verbindung = hole_db_verbindung()
-    cursor = verbindung.cursor()
+        if not df.empty and "fahrzeug" in df.columns and "fachnummer" in df.columns:
+            fahrzeug_df = df[df["fahrzeug"] == fahrzeug]
+
+            fahrzeug_fachnummern = sorted([
+                str(f).strip()
+                for f in fahrzeug_df["fachnummer"].dropna().unique()
+                if str(f).strip() != ""
+            ])
+
+        if not fahrzeug_fachnummern:
+            if fahrzeug == "Lager":
+                fahrzeug_fachnummern = ["Regal"]
+            elif "Anhänger" in fahrzeug or fahrzeug in ["SA", "TSA", "BoA"]:
+                fahrzeug_fachnummern = ["Front", "Heck", "Dach"]
+            else:
+                fahrzeug_fachnummern = [
+                    "G1", "G2", "G3", "G4", "G5", "G6", "G7",
+                    "Dach", "Mannschaftsraum", "Gruppenführerplatz"
+                ]
+
+        fachnummern[fahrzeug] = fahrzeug_fachnummern
 
     if request.method == "POST":
         interne_nummer = request.form.get("interne_nummer", "")
@@ -1729,12 +1761,35 @@ def geraet_bearbeiten(id):
         except ValueError:
             anzahl = 1
 
+        if current_user.role == "admin":
+            wehr_id = geraet["wehr_id"]
+        else:
+            wehr_id = current_user.wehr_id
+
+        db_execute(cursor, """
+            SELECT id
+            FROM fahrzeuge
+            WHERE name = ?
+              AND wehr_id = ?
+              AND aktiv = 1
+        """, (fahrzeug, wehr_id))
+
+        fahrzeug_datensatz = cursor.fetchone()
+
+        if not fahrzeug_datensatz:
+            verbindung.close()
+            flash("Das ausgewählte Fahrzeug wurde nicht gefunden.", "danger")
+            return redirect(url_for("geraet_bearbeiten", id=id))
+
+        fahrzeug_id = fahrzeug_datensatz["id"]
+
         db_execute(cursor, """
             UPDATE geraete
             SET interne_nummer = ?,
                 name = ?,
                 kategorie = ?,
                 fahrzeug = ?,
+                fahrzeug_id = ?,
                 fachnummer = ?,
                 pruefdatum = ?,
                 ablaufdatum = ?,
@@ -1748,6 +1803,7 @@ def geraet_bearbeiten(id):
             name,
             kategorie,
             fahrzeug,
+            fahrzeug_id,
             fachnummer,
             pruefdatum,
             ablaufdatum,
@@ -1761,18 +1817,10 @@ def geraet_bearbeiten(id):
         verbindung.commit()
         verbindung.close()
 
+        flash("Gerät wurde aktualisiert.", "success")
         return redirect(url_for("geraete"))
 
-    db_execute(cursor, "SELECT * FROM geraete WHERE id = ?", (id,))
-    geraet = cursor.fetchone()
     verbindung.close()
-
-    if geraet is None:
-        return f"Gerät mit ID {id} nicht gefunden."
-
-    if not darf_geraet_sehen(geraet):
-        verbindung.close()
-        abort(403)
 
     return render_template(
         "geraet_bearbeiten.html",
