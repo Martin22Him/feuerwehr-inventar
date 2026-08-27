@@ -1713,6 +1713,10 @@ def geraet_neu():
 @login_required
 @geraetewart_required
 def geraet_bearbeiten(id):
+    filter_suche = request.args.get("suche", "")
+    filter_fahrzeug = request.args.get("fahrzeug", "")
+    filter_kategorie = request.args.get("kategorie", "")
+    
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
 
@@ -1841,7 +1845,12 @@ def geraet_bearbeiten(id):
         verbindung.close()
 
         flash("Gerät wurde aktualisiert.", "success")
-        return redirect(url_for("geraete"))
+        return redirect(url_for(
+            "geraete",
+            suche=filter_suche,
+            fahrzeug=filter_fahrzeug,
+            kategorie=filter_kategorie
+        ))
 
     verbindung.close()
 
