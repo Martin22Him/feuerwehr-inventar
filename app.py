@@ -1252,6 +1252,9 @@ def geraete():
         df["wehr_id"] = pd.to_numeric(df["wehr_id"], errors="coerce")
         df = df[df["wehr_id"] == int(aktive_wehr)]
 
+    if "aktiv" in df.columns:
+    df = df[df["aktiv"].astype(str).str.lower().isin(["true", "t", "1"])]
+    
     fahrzeug = request.args.get("fahrzeug", "")
     kategorie = request.args.get("kategorie", "")
     suche = request.args.get("suche", "")
@@ -1290,6 +1293,26 @@ def geraete():
         kategorien=alle_kategorien
     )
 
+@app.route("/geraete/ausser-dienst")
+@login_required
+def geraete_ausser_dienst():
+    df = lade_geraete_aus_db()
+
+    aktive_wehr = get_aktive_wehr_id()
+
+    if aktive_wehr and "wehr_id" in df.columns:
+        df["wehr_id"] = pd.to_numeric(df["wehr_id"], errors="coerce")
+        df = df[df["wehr_id"] == int(aktive_wehr)]
+
+    if "aktiv" in df.columns:
+        df = df[df["aktiv"].astype(str).str.lower().isin(["false", "f", "0"])]
+
+    daten = df.to_dict(orient="records")
+
+    return render_template(
+        "geraete_ausser_dienst.html",
+        daten=daten
+    )
 
 @app.route("/prueftermine")
 @login_required
