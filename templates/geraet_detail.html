@@ -20,7 +20,14 @@
     {% endif %}
 
     <p>
-        <a href="/geraete">← Zurück zur Geräteliste</a>
+        <a href="{{ url_for(
+            'geraete',
+            suche=suche,
+            fahrzeug=fahrzeug,
+            kategorie=kategorie
+        ) }}">
+            ← Zurück zur Geräteliste
+        </a>
         |
         <a href="/geraet/{{ geraet['id'] }}/bearbeiten">Gerät bearbeiten</a>
     </p>
