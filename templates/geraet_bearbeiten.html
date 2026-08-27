@@ -4,124 +4,409 @@
 
 {% block content %}
 
+<style>
+    .edit-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .edit-header h2 {
+        margin-bottom: 5px;
+    }
+
+    .edit-subtitle {
+        color: #666;
+        margin: 0;
+    }
+
+    .edit-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 25px;
+        margin-top: 20px;
+    }
+
+    .edit-section {
+        background: #f7f9fc;
+        border: 1px solid #d9e0ea;
+        border-radius: 8px;
+        padding: 18px;
+    }
+
+    .edit-section h3 {
+        margin-top: 0;
+        margin-bottom: 18px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #5b84c4;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 9px 10px;
+        border: 1px solid #b9c2ce;
+        border-radius: 5px;
+        background: white;
+        font-size: 14px;
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 90px;
+    }
+
+    .form-actions {
+        margin-top: 25px;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .btn-save {
+        background: #4f7fc4;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .btn-save:hover {
+        opacity: 0.9;
+    }
+
+    .status-box {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .status-text {
+        margin: 5px 0;
+        font-size: 16px;
+    }
+
+    .status-active {
+        color: #198754;
+        font-weight: bold;
+    }
+
+    .status-inactive {
+        color: #b00020;
+        font-weight: bold;
+    }
+
+    .btn-out {
+        background: #dc3545;
+        color: white;
+        border: none;
+        padding: 9px 16px;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .btn-in {
+        background: #198754;
+        color: white;
+        border: none;
+        padding: 9px 16px;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    @media (max-width: 800px) {
+        .edit-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-actions {
+            justify-content: stretch;
+        }
+
+        .btn-save {
+            width: 100%;
+        }
+    }
+</style>
+
+
 <div class="box">
-    <h2>Gerät bearbeiten</h2>
+    <div class="edit-header">
+        <div>
+            <h2>Gerät bearbeiten</h2>
+            <p class="edit-subtitle">
+                {{ geraet["name"] }}
+                {% if geraet["interne_nummer"] %}
+                    · {{ geraet["interne_nummer"] }}
+                {% endif %}
+            </p>
+        </div>
+
+        {% if geraet["aktiv"] %}
+            <span class="status-active">● Aktiv / im Dienst</span>
+        {% else %}
+            <span class="status-inactive">● Außer Dienst</span>
+        {% endif %}
+    </div>
+
 
     <form method="post">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-        <p>
-            <label>Interne Nummer:</label><br>
-            <input type="text" name="interne_nummer" value="{{ geraet['interne_nummer'] }}" required>
-        </p>
+        <div class="edit-grid">
 
-        <p>
-            <label>Name:</label><br>
-            <input type="text" name="name" value="{{ geraet['name'] }}" required>
-        </p>
+            <!-- STAMMDATEN -->
+            <div class="edit-section">
+                <h3>Stammdaten</h3>
 
-        <p>
-            <label>Kategorie:</label><br>
-            <select name="kategorie" required>
-                <option value="">Bitte auswählen</option>
-                {% for kategorie in kategorien %}
-                    <option value="{{ kategorie }}" {% if geraet['kategorie'] == kategorie %}selected{% endif %}>
-                        {{ kategorie }}
-                    </option>
-                {% endfor %}
-            </select>
-        </p>
+                <div class="form-group">
+                    <label>Interne Nummer</label>
+                    <input
+                        type="text"
+                        name="interne_nummer"
+                        value="{{ geraet['interne_nummer'] or '' }}"
+                        required
+                    >
+                </div>
 
-        <p>
-            <label>Fahrzeug / Bereich:</label><br>
-            <select name="fahrzeug" id="fahrzeug" required onchange="updateFachnummern()">
-                <option value="">Bitte auswählen</option>
-                {% for fahrzeug in fahrzeuge %}
-                    <option value="{{ fahrzeug }}" {% if geraet['fahrzeug'] == fahrzeug %}selected{% endif %}>
-                        {{ fahrzeug }}
-                    </option>
-                {% endfor %}
-            </select>
-        </p>
+                <div class="form-group">
+                    <label>Name</label>
+                    <input
+                        type="text"
+                        name="name"
+                        value="{{ geraet['name'] or '' }}"
+                        required
+                    >
+                </div>
 
-        <p>
-            <label>Fachnummer:</label><br>
-            <select name="fachnummer" id="fachnummer" required></select>
-        </p>
+                <div class="form-group">
+                    <label>Kategorie</label>
+                    <select name="kategorie" required>
+                        <option value="">Bitte auswählen</option>
 
-        <p>
-            <label>Prüfdatum:</label><br>
-            <input type="text" name="pruefdatum" value="{{ geraet['pruefdatum'] }}" placeholder="YYYY-MM-DD">
-        </p>
+                        {% for kategorie in kategorien %}
+                            <option
+                                value="{{ kategorie }}"
+                                {% if geraet['kategorie'] == kategorie %}selected{% endif %}
+                            >
+                                {{ kategorie }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-        <p>
-            <label>Ablaufdatum:</label><br>
-            <input type="text" name="ablaufdatum" value="{{ geraet['ablaufdatum'] }}" placeholder="YYYY-MM-DD">
-        </p>
+                <div class="form-group">
+                    <label>Hersteller</label>
+                    <input
+                        type="text"
+                        name="hersteller"
+                        value="{{ geraet['hersteller'] or '' }}"
+                    >
+                </div>
 
-        <p>
-            <label>Anzahl:</label><br>
-            <input type="number" name="anzahl" value="{{ geraet['anzahl'] }}" min="1">
-        </p>
+                <div class="form-group">
+                    <label>Barcode</label>
+                    <input
+                        type="text"
+                        name="barcode"
+                        value="{{ geraet['barcode'] or '' }}"
+                    >
+                </div>
+            </div>
 
-        <p>
-            <label>Bemerkung:</label><br>
-            <textarea name="bemerkung" rows="3">{{ geraet['bemerkung'] }}</textarea>
-        </p>
 
-        <p>
-            <label>Hersteller:</label><br>
-            <input type="text" name="hersteller" value="{{ geraet['hersteller'] }}">
-        </p>
+            <!-- STANDORT -->
+            <div class="edit-section">
+                <h3>Standort</h3>
 
-        <p>
-            <label>Barcode:</label><br>
-            <input type="text" name="barcode" value="{{ geraet['barcode'] }}">
-        </p>
+                <div class="form-group">
+                    <label>Fahrzeug / Bereich</label>
+                    <select
+                        name="fahrzeug"
+                        id="fahrzeug"
+                        required
+                        onchange="updateFachnummern()"
+                    >
+                        <option value="">Bitte auswählen</option>
 
-        <p>
-            <button type="submit">Änderungen speichern</button>
-        </p>
+                        {% for fahrzeug in fahrzeuge %}
+                            <option
+                                value="{{ fahrzeug }}"
+                                {% if geraet['fahrzeug'] == fahrzeug %}selected{% endif %}
+                            >
+                                {{ fahrzeug }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Fachnummer</label>
+                    <select
+                        name="fachnummer"
+                        id="fachnummer"
+                        required
+                    ></select>
+                </div>
+            </div>
+
+
+            <!-- PRÜFUNG -->
+            <div class="edit-section">
+                <h3>Prüfung</h3>
+
+                <div class="form-group">
+                    <label>Prüfdatum</label>
+                    <input
+                        type="text"
+                        name="pruefdatum"
+                        value="{{ geraet['pruefdatum'] or '' }}"
+                        placeholder="YYYY-MM-DD"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>Ablaufdatum</label>
+                    <input
+                        type="text"
+                        name="ablaufdatum"
+                        value="{{ geraet['ablaufdatum'] or '' }}"
+                        placeholder="YYYY-MM-DD"
+                    >
+                </div>
+            </div>
+
+
+            <!-- WEITERE ANGABEN -->
+            <div class="edit-section">
+                <h3>Weitere Angaben</h3>
+
+                <div class="form-group">
+                    <label>Anzahl</label>
+                    <input
+                        type="number"
+                        name="anzahl"
+                        value="{{ geraet['anzahl'] or 1 }}"
+                        min="1"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>Bemerkung</label>
+                    <textarea
+                        name="bemerkung"
+                        rows="4"
+                    >{{ geraet['bemerkung'] or '' }}</textarea>
+                </div>
+            </div>
+
+        </div>
+
+
+        <div class="form-actions">
+            <button type="submit" class="btn-save">
+                Änderungen speichern
+            </button>
+        </div>
     </form>
 </div>
 
+
+<!-- GERÄTESTATUS -->
 <div class="box" style="margin-top: 20px;">
-    <h3>Gerätestatus</h3>
+    <div class="status-box">
 
-    {% if geraet["aktiv"] %}
-        <p>
-            Aktueller Status:
-            <strong style="color: green;">Aktiv / im Dienst</strong>
-        </p>
+        <div>
+            <h3 style="margin-top: 0;">Gerätestatus</h3>
 
-        <form method="post"
-              action="{{ url_for('geraet_status_wechseln', id=geraet['id']) }}"
-              onsubmit="return confirm('Soll dieses Gerät wirklich außer Dienst genommen werden?');">
+            {% if geraet["aktiv"] %}
+                <p class="status-text">
+                    Aktueller Status:
+                    <span class="status-active">● Aktiv / im Dienst</span>
+                </p>
 
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <p style="color: #666; margin-bottom: 0;">
+                    Das Gerät wird im aktiven Bestand angezeigt.
+                </p>
 
-            <button type="submit">
-                Gerät außer Dienst nehmen
-            </button>
-        </form>
+            {% else %}
+                <p class="status-text">
+                    Aktueller Status:
+                    <span class="status-inactive">● Außer Dienst</span>
+                </p>
 
-    {% else %}
-        <p>
-            Aktueller Status:
-            <strong style="color: #b00020;">Außer Dienst</strong>
-        </p>
+                <p style="color: #666; margin-bottom: 0;">
+                    Das Gerät ist aus dem aktiven Bestand ausgeblendet.
+                </p>
+            {% endif %}
+        </div>
 
-        <form method="post"
-              action="{{ url_for('geraet_status_wechseln', id=geraet['id']) }}">
 
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <div>
+            {% if geraet["aktiv"] %}
 
-            <button type="submit">
-                Gerät wieder in Dienst nehmen
-            </button>
-        </form>
-    {% endif %}
+                <form
+                    method="post"
+                    action="{{ url_for('geraet_status_wechseln', id=geraet['id']) }}"
+                    onsubmit="return confirm('Soll dieses Gerät wirklich außer Dienst genommen werden?');"
+                >
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="{{ csrf_token() }}"
+                    >
+
+                    <button type="submit" class="btn-out">
+                        Gerät außer Dienst nehmen
+                    </button>
+                </form>
+
+            {% else %}
+
+                <form
+                    method="post"
+                    action="{{ url_for('geraet_status_wechseln', id=geraet['id']) }}"
+                >
+                    <input
+                        type="hidden"
+                        name="csrf_token"
+                        value="{{ csrf_token() }}"
+                    >
+
+                    <button type="submit" class="btn-in">
+                        Gerät wieder in Dienst nehmen
+                    </button>
+                </form>
+
+            {% endif %}
+        </div>
+
+    </div>
 </div>
+
 
 <script>
     const fachnummernDaten = {{ fachnummern | tojson }};
