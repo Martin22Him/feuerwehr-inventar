@@ -65,7 +65,17 @@
                 <td>{{ item["pruefdatum"] }}</td>
                 <td>{{ item["ablaufdatum"] }}</td>
                 <td>{{ item["anzahl"] }}</td>
-                <td><a href="/geraet/{{ item['id'] }}">Details</a></td>
+                <td>
+                    <a href="{{ url_for(
+                        'geraet_detail',
+                        id=item['id'],
+                        suche=suche,
+                        fahrzeug=fahrzeug,
+                        kategorie=kategorie
+                    ) }}">
+                        Details
+                    </a>
+                </td>
                 <td>
                     <a href="{{ url_for(
                         'geraet_bearbeiten',
