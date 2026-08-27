@@ -1906,6 +1906,10 @@ def geraet_status_wechseln(id):
 @app.route("/geraet/<int:id>")
 @login_required
 def geraet_detail(id):
+    filter_suche = request.args.get("suche", "")
+    filter_fahrzeug = request.args.get("fahrzeug", "")
+    filter_kategorie = request.args.get("kategorie", "")
+    
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
 
@@ -1948,7 +1952,10 @@ def geraet_detail(id):
         "geraet_detail.html",
         geraet=geraet,
         historie=historie,
-        protokolle=protokolle
+        protokolle=protokolle,
+        suche=filter_suche,
+        fahrzeug=filter_fahrzeug,
+        kategorie=filter_kategorie
     )
 
 @app.route("/pruefauftrag")
