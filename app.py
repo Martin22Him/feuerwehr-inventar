@@ -1253,7 +1253,7 @@ def geraete():
         df = df[df["wehr_id"] == int(aktive_wehr)]
 
     if "aktiv" in df.columns:
-    df = df[df["aktiv"].astype(str).str.lower().isin(["true", "t", "1"])]
+        df = df[df["aktiv"].astype(str).str.lower().isin(["true", "t", "1"])]
     
     fahrzeug = request.args.get("fahrzeug", "")
     kategorie = request.args.get("kategorie", "")
