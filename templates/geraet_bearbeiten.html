@@ -85,6 +85,44 @@
     </form>
 </div>
 
+<div class="box" style="margin-top: 20px;">
+    <h3>Gerätestatus</h3>
+
+    {% if geraet["aktiv"] %}
+        <p>
+            Aktueller Status:
+            <strong style="color: green;">Aktiv / im Dienst</strong>
+        </p>
+
+        <form method="post"
+              action="{{ url_for('geraet_status_wechseln', id=geraet['id']) }}"
+              onsubmit="return confirm('Soll dieses Gerät wirklich außer Dienst genommen werden?');">
+
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <button type="submit">
+                Gerät außer Dienst nehmen
+            </button>
+        </form>
+
+    {% else %}
+        <p>
+            Aktueller Status:
+            <strong style="color: #b00020;">Außer Dienst</strong>
+        </p>
+
+        <form method="post"
+              action="{{ url_for('geraet_status_wechseln', id=geraet['id']) }}">
+
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <button type="submit">
+                Gerät wieder in Dienst nehmen
+            </button>
+        </form>
+    {% endif %}
+</div>
+
 <script>
     const fachnummernDaten = {{ fachnummern | tojson }};
     const aktuelleFachnummer = "{{ geraet['fachnummer'] }}";
