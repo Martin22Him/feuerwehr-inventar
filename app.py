@@ -1830,6 +1830,47 @@ def geraet_bearbeiten(id):
         fachnummern=fachnummern
     )
 
+@app.route("/geraet/<int:id>/status_wechseln", methods=["POST"])
+@login_required
+@geraetewart_required
+def geraet_status_wechseln(id):
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    db_execute(cursor, """
+        SELECT *
+        FROM geraete
+        WHERE id = ?
+    """, (id,))
+
+    geraet = cursor.fetchone()
+
+    if geraet is None:
+        verbindung.close()
+        return f"Gerät mit ID {id} nicht gefunden.", 404
+
+    if not darf_geraet_sehen(geraet):
+        verbindung.close()
+        abort(403)
+
+    neuer_status = not bool(geraet["aktiv"])
+
+    db_execute(cursor, """
+        UPDATE geraete
+        SET aktiv = ?
+        WHERE id = ?
+    """, (neuer_status, id))
+
+    verbindung.commit()
+    verbindung.close()
+
+    if neuer_status:
+        flash("Gerät wurde wieder in Dienst genommen.", "success")
+    else:
+        flash("Gerät wurde außer Dienst genommen.", "success")
+
+    return redirect(url_for("geraet_bearbeiten", id=id))
+
 @app.route("/geraet/<int:id>")
 @login_required
 def geraet_detail(id):
