@@ -6,6 +6,19 @@
 
 <div class="box">
     <h2>Gerätedetails</h2>
+
+    {% if not geraet["aktiv"] %}
+    <div style="
+        background-color: #f8d7da;
+        border: 1px solid #dc3545;
+        padding: 12px;
+        margin-bottom: 15px;
+        border-radius: 6px;
+    ">
+        <strong>🔴 Dieses Gerät ist außer Dienst gestellt.</strong>
+    </div>
+    {% endif %}
+
     <p>
         <a href="/geraete">← Zurück zur Geräteliste</a>
         |
@@ -21,58 +34,83 @@
             <th>Feld</th>
             <th>Wert</th>
         </tr>
+
+        <tr>
+            <td>Status</td>
+            <td>
+                {% if geraet["aktiv"] %}
+                    <strong style="color: green;">🟢 Aktiv / im Dienst</strong>
+                {% else %}
+                    <strong style="color: #b00020;">🔴 Außer Dienst</strong>
+                {% endif %}
+            </td>
+        </tr>
+
         <tr>
             <td>Interne Nummer</td>
             <td>{{ geraet["interne_nummer"] }}</td>
         </tr>
+
         <tr>
             <td>Name</td>
             <td>{{ geraet["name"] }}</td>
         </tr>
+
         <tr>
             <td>Kategorie</td>
             <td>{{ geraet["kategorie"] }}</td>
         </tr>
+
         <tr>
             <td>Fahrzeug / Bereich</td>
             <td>{{ geraet["fahrzeug"] }}</td>
         </tr>
+
         <tr>
             <td>Fachnummer</td>
             <td>{{ geraet["fachnummer"] }}</td>
         </tr>
+
         <tr>
             <td>Prüfdatum</td>
             <td>{{ geraet["pruefdatum"] }}</td>
         </tr>
+
         <tr>
             <td>Ablaufdatum</td>
             <td>{{ geraet["ablaufdatum"] }}</td>
         </tr>
+
         <tr>
             <td>Prüfstatus</td>
             <td>{{ geraet["pruefstatus"] }}</td>
         </tr>
+
         <tr>
             <td>Prüfstelle</td>
             <td>{{ geraet["pruefstelle"] }}</td>
         </tr>
+
         <tr>
             <td>Prüfauftrag Datum</td>
             <td>{{ geraet["pruefauftrag_datum"] }}</td>
         </tr>
+
         <tr>
             <td>Anzahl</td>
             <td>{{ geraet["anzahl"] }}</td>
         </tr>
+
         <tr>
             <td>Hersteller</td>
             <td>{{ geraet["hersteller"] }}</td>
         </tr>
+
         <tr>
             <td>Barcode</td>
             <td>{{ geraet["barcode"] }}</td>
         </tr>
+
         <tr>
             <td>Bemerkung</td>
             <td>{{ geraet["bemerkung"] }}</td>
@@ -105,19 +143,22 @@
                     <td>{{ protokoll["pruefstelle"] }}</td>
                     <td>{{ protokoll["ergebnis"] }}</td>
                     <td>{{ protokoll["bemerkung"] }}</td>
+
                     <td>
                         {% if protokoll["pdf_dateiname"] %}
-                             <a href="{{ url_for('pruefprotokoll_pdf_oeffnen', id=protokoll['id']) }}" target="_blank">
+                            <a href="{{ url_for('pruefprotokoll_pdf_oeffnen', id=protokoll['id']) }}"
+                               target="_blank">
                                 PDF öffnen
-                             </a>
+                            </a>
                         {% else %}
                             Noch kein PDF
                         {% endif %}
                     </td>
+
                     <td>
-                         <a href="{{ url_for('pruefprotokoll_detail', id=protokoll['id']) }}">
-                             Öffnen
-                         </a>
+                        <a href="{{ url_for('pruefprotokoll_detail', id=protokoll['id']) }}">
+                            Öffnen
+                        </a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -126,15 +167,6 @@
     {% else %}
         <p>Noch keine Prüfprotokolle vorhanden.</p>
     {% endif %}
-</div>
-<div class="box">
-    <h3>Platzhalter für spätere Erweiterungen</h3>
-    <p>Hier können später ergänzt werden:</p>
-    <ul>
-        <li>Bild des Geräts</li>
-        <li>Prüfprotokolle</li>
-        <li>weitere technische Daten</li>
-    </ul>
 </div>
 
 {% endblock %}
