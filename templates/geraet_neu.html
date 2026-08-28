@@ -4,103 +4,290 @@
 
 {% block content %}
 
+<style>
+    .edit-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .edit-header h2 {
+        margin-bottom: 5px;
+    }
+
+    .edit-subtitle {
+        color: #666;
+        margin: 0;
+    }
+
+    .edit-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 25px;
+        margin-top: 20px;
+    }
+
+    .edit-section {
+        background: #f7f9fc;
+        border: 1px solid #d9e0ea;
+        border-radius: 8px;
+        padding: 18px;
+    }
+
+    .edit-section h3 {
+        margin-top: 0;
+        margin-bottom: 18px;
+        padding-bottom: 8px;
+        border-bottom: 2px solid #5b84c4;
+    }
+
+    .form-group {
+        margin-bottom: 15px;
+    }
+
+    .form-group:last-child {
+        margin-bottom: 0;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: bold;
+        margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 9px 10px;
+        border: 1px solid #b9c2ce;
+        border-radius: 5px;
+        background: white;
+        font-size: 14px;
+    }
+
+    .form-group textarea {
+        resize: vertical;
+        min-height: 90px;
+    }
+
+    .form-actions {
+        margin-top: 25px;
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    .btn-save {
+        background: #4f7fc4;
+        color: white;
+        border: none;
+        padding: 10px 20px;
+        border-radius: 6px;
+        font-weight: bold;
+        cursor: pointer;
+    }
+
+    .btn-save:hover {
+        opacity: 0.9;
+    }
+
+    @media (max-width: 800px) {
+        .edit-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .form-actions {
+            justify-content: stretch;
+        }
+
+        .btn-save {
+            width: 100%;
+        }
+    }
+</style>
+
+
 <div class="box">
-    <h2>Neues Gerät hinzufügen</h2>
+    <div class="edit-header">
+        <div>
+            <h2>Neues Gerät hinzufügen</h2>
+            <p class="edit-subtitle">
+                Neues Gerät in den Inventarbestand aufnehmen
+            </p>
+        </div>
+    </div>
 
     <form method="post">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-    {% if current_user.role == "admin" %}
-    <p>
-        <label>Wehr:</label><br>
-        <select name="wehr_id" required>
-            <option value="">Bitte auswählen</option>
+        <div class="edit-grid">
 
-            {% for wehr in wehren %}
-                <option value="{{ wehr['id'] }}"
-                    {% if aktive_wehr|string == wehr['id']|string %}
-                        selected
-                    {% endif %}
-                >
-                    {{ wehr['name'] }}
-                </option>
-            {% endfor %}
-        </select>
-    </p>
-    {% endif %}
+            <!-- STAMMDATEN -->
+            <div class="edit-section">
+                <h3>Stammdaten</h3>
 
-    <p>
-        <label>Interne Nummer:</label><br>
-        <input type="text" name="interne_nummer" required>
-    </p>
+                {% if current_user.role == "admin" %}
+                <div class="form-group">
+                    <label>Wehr</label>
+                    <select name="wehr_id" required>
+                        <option value="">Bitte auswählen</option>
 
-        <p>
-            <label>Name:</label><br>
-            <input type="text" name="name" required>
-        </p>
+                        {% for wehr in wehren %}
+                            <option
+                                value="{{ wehr['id'] }}"
+                                {% if aktive_wehr|string == wehr['id']|string %}selected{% endif %}
+                            >
+                                {{ wehr['name'] }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
 
-        <p>
-            <label>Kategorie:</label><br>
-            <select name="kategorie" required>
-                <option value="">Bitte auswählen</option>
-                {% for kategorie in kategorien %}
-                    <option value="{{ kategorie }}">{{ kategorie }}</option>
-                {% endfor %}
-            </select>
-        </p>
+                <div class="form-group">
+                    <label>Interne Nummer</label>
+                    <input
+                        type="text"
+                        name="interne_nummer"
+                        required
+                    >
+                </div>
 
-        <p>
-            <label>Fahrzeug / Bereich:</label><br>
-            <select name="fahrzeug" id="fahrzeug" required onchange="updateFachnummern()">
-                <option value="">Bitte auswählen</option>
-                {% for fahrzeug in fahrzeuge %}
-                    <option value="{{ fahrzeug }}">{{ fahrzeug }}</option>
-                {% endfor %}
-            </select>
-        </p>
+                <div class="form-group">
+                    <label>Name</label>
+                    <input
+                        type="text"
+                        name="name"
+                        required
+                    >
+                </div>
 
-        <p>
-            <label>Fachnummer:</label><br>
-            <select name="fachnummer" id="fachnummer" required>
-                <option value="">Bitte zuerst Fahrzeug wählen</option>
-            </select>
-        </p>
+                <div class="form-group">
+                    <label>Kategorie</label>
+                    <select name="kategorie" required>
+                        <option value="">Bitte auswählen</option>
 
-        <p>
-            <label>Prüfdatum:</label><br>
-            <input type="text" name="pruefdatum" placeholder="YYYY-MM-DD">
-        </p>
+                        {% for kategorie in kategorien %}
+                            <option value="{{ kategorie }}">
+                                {{ kategorie }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
 
-        <p>
-            <label>Ablaufdatum:</label><br>
-            <input type="text" name="ablaufdatum" placeholder="YYYY-MM-DD">
-        </p>
+                <div class="form-group">
+                    <label>Hersteller</label>
+                    <input
+                        type="text"
+                        name="hersteller"
+                    >
+                </div>
 
-        <p>
-            <label>Anzahl:</label><br>
-            <input type="number" name="anzahl" value="1" min="1">
-        </p>
+                <div class="form-group">
+                    <label>Barcode</label>
+                    <input
+                        type="text"
+                        name="barcode"
+                    >
+                </div>
+            </div>
 
-        <p>
-            <label>Bemerkung:</label><br>
-            <textarea name="bemerkung" rows="3"></textarea>
-        </p>
 
-        <p>
-            <label>Hersteller:</label><br>
-            <input type="text" name="hersteller">
-        </p>
+            <!-- STANDORT -->
+            <div class="edit-section">
+                <h3>Standort</h3>
 
-        <p>
-            <label>Barcode:</label><br>
-            <input type="text" name="barcode">
-        </p>
+                <div class="form-group">
+                    <label>Fahrzeug / Bereich</label>
+                    <select
+                        name="fahrzeug"
+                        id="fahrzeug"
+                        required
+                        onchange="updateFachnummern()"
+                    >
+                        <option value="">Bitte auswählen</option>
 
-        <p>
-            <button type="submit">Speichern</button>
-        </p>
+                        {% for fahrzeug in fahrzeuge %}
+                            <option value="{{ fahrzeug }}">
+                                {{ fahrzeug }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>Fachnummer</label>
+                    <select
+                        name="fachnummer"
+                        id="fachnummer"
+                        required
+                    >
+                        <option value="">Bitte zuerst Fahrzeug wählen</option>
+                    </select>
+                </div>
+            </div>
+
+
+            <!-- PRÜFUNG -->
+            <div class="edit-section">
+                <h3>Prüfung</h3>
+
+                <div class="form-group">
+                    <label>Prüfdatum</label>
+                    <input
+                        type="text"
+                        name="pruefdatum"
+                        placeholder="YYYY-MM-DD"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>Ablaufdatum</label>
+                    <input
+                        type="text"
+                        name="ablaufdatum"
+                        placeholder="YYYY-MM-DD"
+                    >
+                </div>
+            </div>
+
+
+            <!-- WEITERE ANGABEN -->
+            <div class="edit-section">
+                <h3>Weitere Angaben</h3>
+
+                <div class="form-group">
+                    <label>Anzahl</label>
+                    <input
+                        type="number"
+                        name="anzahl"
+                        value="1"
+                        min="1"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label>Bemerkung</label>
+                    <textarea
+                        name="bemerkung"
+                        rows="4"
+                    ></textarea>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn-save">
+                Gerät speichern
+            </button>
+        </div>
     </form>
 </div>
+
 
 <script>
     const fachnummernDaten = {{ fachnummern | tojson }};
