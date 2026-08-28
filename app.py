@@ -1623,6 +1623,118 @@ def mitglieder():
         suche=suche
     )
 
+@app.route("/mitglieder/neu", methods=["GET", "POST"])
+@login_required
+@geraetewart_required
+def mitglied_neu():
+    aktive_wehr = get_aktive_wehr_id()
+
+    if current_user.role == "admin":
+        wehren = lade_alle_wehren()
+    else:
+        wehren = []
+
+    if request.method == "POST":
+        vorname = request.form.get("vorname", "").strip()
+        nachname = request.form.get("nachname", "").strip()
+        spindnummer = request.form.get("spindnummer", "").strip()
+        bemerkung = request.form.get("bemerkung", "").strip()
+
+        if current_user.role == "admin":
+            wehr_id = request.form.get("wehr_id") or aktive_wehr
+
+            if not wehr_id:
+                flash("Bitte eine Wehr auswählen.", "danger")
+                return redirect(url_for("mitglied_neu"))
+        else:
+            wehr_id = current_user.wehr_id
+
+        if not vorname or not nachname:
+            flash("Vorname und Nachname sind Pflichtfelder.", "danger")
+            return redirect(url_for("mitglied_neu"))
+
+        verbindung = hole_db_verbindung()
+        cursor = verbindung.cursor()
+
+        try:
+            db_execute(cursor, """
+                INSERT INTO mitglieder (
+                    wehr_id,
+                    vorname,
+                    nachname,
+                    spindnummer,
+                    aktiv,
+                    bemerkung
+                )
+                VALUES (?, ?, ?, ?, TRUE, ?)
+            """, (
+                wehr_id,
+                vorname,
+                nachname,
+                spindnummer or None,
+                bemerkung
+            ))
+
+            if USING_POSTGRES:
+                db_execute(cursor, "SELECT LASTVAL() AS id")
+                mitglied_id = cursor.fetchone()["id"]
+            else:
+                mitglied_id = cursor.lastrowid
+
+            db_execute(cursor, """
+                SELECT id
+                FROM kleidungsarten
+                WHERE aktiv = TRUE
+                  AND ist_standard = TRUE
+                ORDER BY bereich, sortierung
+            """)
+
+            standard_kleidungsarten = cursor.fetchall()
+
+            for kleidungsart in standard_kleidungsarten:
+                db_execute(cursor, """
+                    INSERT INTO kleidung (
+                        wehr_id,
+                        kleidungsart_id,
+                        mitglied_id,
+                        status,
+                        waschzaehler,
+                        aktiv
+                    )
+                    VALUES (?, ?, ?, 'Ausgegeben', 0, TRUE)
+                """, (
+                    wehr_id,
+                    kleidungsart["id"],
+                    mitglied_id
+                ))
+
+            verbindung.commit()
+
+            flash(
+                f"Mitglied {vorname} {nachname} wurde mit Standardkleidung angelegt.",
+                "success"
+            )
+
+            return redirect(url_for("mitglieder"))
+
+        except Exception as e:
+            verbindung.rollback()
+            print("FEHLER mitglied_neu:", e)
+
+            flash(
+                f"Mitglied konnte nicht angelegt werden: {e}",
+                "danger"
+            )
+
+        finally:
+            verbindung.close()
+
+    return render_template(
+        "mitglied_neu.html",
+        wehren=wehren,
+        aktive_wehr=aktive_wehr
+    )
+
 @app.route("/kleidung")
 @login_required
 def kleidung():
