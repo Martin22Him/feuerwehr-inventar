@@ -1823,6 +1823,115 @@ def mitglied_detail(id):
         bereich=bereich
     )
 
+@app.route("/kleidung/<int:id>/bearbeiten", methods=["GET", "POST"])
+@login_required
+@geraetewart_required
+def kleidung_bearbeiten(id):
+    aktive_wehr = get_aktive_wehr_id()
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    if aktive_wehr:
+        db_execute(cursor, """
+            SELECT
+                k.*,
+                ka.bezeichnung,
+                ka.bereich,
+                m.vorname,
+                m.nachname
+            FROM kleidung k
+            JOIN kleidungsarten ka
+                ON k.kleidungsart_id = ka.id
+            LEFT JOIN mitglieder m
+                ON k.mitglied_id = m.id
+            WHERE k.id = ?
+              AND k.wehr_id = ?
+        """, (id, aktive_wehr))
+    else:
+        db_execute(cursor, """
+            SELECT
+                k.*,
+                ka.bezeichnung,
+                ka.bereich,
+                m.vorname,
+                m.nachname
+            FROM kleidung k
+            JOIN kleidungsarten ka
+                ON k.kleidungsart_id = ka.id
+            LEFT JOIN mitglieder m
+                ON k.mitglied_id = m.id
+            WHERE k.id = ?
+        """, (id,))
+
+    kleidungsstueck = cursor.fetchone()
+
+    if not kleidungsstueck:
+        verbindung.close()
+        abort(404)
+
+    if request.method == "POST":
+        groesse = request.form.get("groesse", "").strip()
+        hersteller = request.form.get("hersteller", "").strip()
+        interne_nummer = request.form.get("interne_nummer", "").strip()
+        barcode = request.form.get("barcode", "").strip()
+        bemerkung = request.form.get("bemerkung", "").strip()
+
+        try:
+            db_execute(cursor, """
+                UPDATE kleidung
+                SET groesse = ?,
+                    hersteller = ?,
+                    interne_nummer = ?,
+                    barcode = ?,
+                    bemerkung = ?
+                WHERE id = ?
+            """, (
+                groesse or None,
+                hersteller or None,
+                interne_nummer or None,
+                barcode or None,
+                bemerkung or None,
+                id
+            ))
+
+            verbindung.commit()
+
+            flash("Kleidungsstück wurde aktualisiert.", "success")
+
+            mitglied_id = kleidungsstueck["mitglied_id"]
+            bereich = kleidungsstueck["bereich"]
+
+            if mitglied_id:
+                return redirect(url_for(
+                    "mitglied_detail",
+                    id=mitglied_id,
+                    bereich=bereich
+                ))
+
+            return redirect(url_for("kleidung"))
+
+        except Exception as e:
+            verbindung.rollback()
+
+            print("FEHLER kleidung_bearbeiten:", e)
+
+            flash(
+                "Kleidungsstück konnte nicht gespeichert werden. "
+                "Barcode oder interne Nummer ist möglicherweise bereits vergeben.",
+                "danger"
+            )
+
+        finally:
+            verbindung.close()
+
+    verbindung.close()
+
+    return render_template(
+        "kleidung_bearbeiten.html",
+        kleidungsstueck=kleidungsstueck
+    )
+
 @app.route("/kleidung")
 @login_required
 def kleidung():
