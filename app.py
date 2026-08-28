@@ -2048,6 +2048,185 @@ def kleidung_neu():
         aktive_wehr=aktive_wehr
     )
 
+@app.route("/kleidung/<int:id>/ausgeben", methods=["GET", "POST"])
+@login_required
+@geraetewart_required
+def kleidung_ausgeben(id):
+    aktive_wehr = get_aktive_wehr_id()
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    # Kleidungsstück laden
+    if aktive_wehr:
+        db_execute(cursor, """
+            SELECT
+                k.id,
+                k.wehr_id,
+                k.mitglied_id,
+                k.status,
+                k.aktiv,
+                k.groesse,
+                k.hersteller,
+                k.interne_nummer,
+                k.barcode,
+                ka.bezeichnung,
+                ka.bereich
+            FROM kleidung k
+            JOIN kleidungsarten ka
+                ON k.kleidungsart_id = ka.id
+            WHERE k.id = ?
+              AND k.wehr_id = ?
+        """, (id, aktive_wehr))
+    else:
+        db_execute(cursor, """
+            SELECT
+                k.id,
+                k.wehr_id,
+                k.mitglied_id,
+                k.status,
+                k.aktiv,
+                k.groesse,
+                k.hersteller,
+                k.interne_nummer,
+                k.barcode,
+                ka.bezeichnung,
+                ka.bereich
+            FROM kleidung k
+            JOIN kleidungsarten ka
+                ON k.kleidungsart_id = ka.id
+            WHERE k.id = ?
+        """, (id,))
+
+    kleidungsstueck = cursor.fetchone()
+
+    if not kleidungsstueck:
+        verbindung.close()
+        abort(404)
+
+    # Nur verfügbare aktive Kleidung darf ausgegeben werden
+    if not kleidungsstueck["aktiv"]:
+        verbindung.close()
+        flash("Dieses Kleidungsstück ist außer Dienst.", "danger")
+        return redirect(url_for("kleidung"))
+
+    if kleidungsstueck["status"] != "Verfügbar":
+        verbindung.close()
+        flash("Dieses Kleidungsstück ist nicht verfügbar.", "danger")
+        return redirect(url_for("kleidung"))
+
+    if kleidungsstueck["mitglied_id"]:
+        verbindung.close()
+        flash("Dieses Kleidungsstück ist bereits einem Mitglied zugeordnet.", "danger")
+        return redirect(url_for("kleidung"))
+
+    # Nur aktive Mitglieder derselben Wehr laden
+    db_execute(cursor, """
+        SELECT
+            id,
+            vorname,
+            nachname,
+            spindnummer
+        FROM mitglieder
+        WHERE wehr_id = ?
+          AND aktiv = TRUE
+        ORDER BY nachname ASC, vorname ASC
+    """, (kleidungsstueck["wehr_id"],))
+
+    mitglieder = cursor.fetchall()
+
+    if request.method == "POST":
+        mitglied_id = request.form.get("mitglied_id", "").strip()
+
+        if not mitglied_id:
+            verbindung.close()
+            flash("Bitte ein Mitglied auswählen.", "danger")
+            return redirect(url_for("kleidung_ausgeben", id=id))
+
+        try:
+            mitglied_id = int(mitglied_id)
+        except ValueError:
+            verbindung.close()
+            flash("Ungültiges Mitglied.", "danger")
+            return redirect(url_for("kleidung_ausgeben", id=id))
+
+        # Mitglied erneut kontrollieren
+        db_execute(cursor, """
+            SELECT
+                id,
+                wehr_id,
+                aktiv
+            FROM mitglieder
+            WHERE id = ?
+              AND wehr_id = ?
+              AND aktiv = TRUE
+        """, (
+            mitglied_id,
+            kleidungsstueck["wehr_id"]
+        ))
+
+        mitglied = cursor.fetchone()
+
+        if not mitglied:
+            verbindung.close()
+            flash(
+                "Das ausgewählte Mitglied gehört nicht zu dieser Wehr "
+                "oder ist nicht aktiv.",
+                "danger"
+            )
+            return redirect(url_for("kleidung_ausgeben", id=id))
+
+        try:
+            db_execute(cursor, """
+                UPDATE kleidung
+                SET mitglied_id = ?,
+                    status = 'Ausgegeben'
+                WHERE id = ?
+                  AND wehr_id = ?
+                  AND aktiv = TRUE
+                  AND status = 'Verfügbar'
+                  AND mitglied_id IS NULL
+            """, (
+                mitglied_id,
+                id,
+                kleidungsstueck["wehr_id"]
+            ))
+
+            verbindung.commit()
+
+            flash(
+                "Kleidungsstück wurde dem Mitglied ausgegeben.",
+                "success"
+            )
+
+            return redirect(url_for(
+                "mitglied_detail",
+                id=mitglied_id,
+                bereich=kleidungsstueck["bereich"]
+            ))
+
+        except Exception as e:
+            verbindung.rollback()
+
+            print("FEHLER kleidung_ausgeben:", e)
+
+            flash(
+                "Das Kleidungsstück konnte nicht ausgegeben werden.",
+                "danger"
+            )
+
+        finally:
+            verbindung.close()
+
+    else:
+        verbindung.close()
+
+    return render_template(
+        "kleidung_ausgeben.html",
+        kleidungsstueck=kleidungsstueck,
+        mitglieder=mitglieder
+    )
+
 @app.route("/kleidung")
 @login_required
 def kleidung():
