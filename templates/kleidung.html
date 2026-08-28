@@ -142,7 +142,7 @@
         <div class="kleiderkammer-actions">
 
             {% if current_user.role in ["admin", "geraetewart"] %}
-                <a href="#" class="nav-button">
+                <a href="{{ url_for('kleidung_neu') }}" class="nav-button">
                     + Kleidungsstück anlegen
                 </a>
             {% endif %}
