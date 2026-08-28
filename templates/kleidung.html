@@ -405,7 +405,20 @@
                                     id=item['id']
                                 ) }}">
                                     Bearbeiten
-                                </a>
+                                 </a>
+
+                                 {% if item["status"] == "Verfügbar" and not item["mitglied_id"] %}
+
+                                     &nbsp;|&nbsp;
+
+                                     <a href="{{ url_for(
+                                        'kleidung_ausgeben',
+                                        id=item['id']
+                                     ) }}">
+                                         Ausgeben
+                                     </a>
+
+                                 {% endif %}
 
                             {% else %}
 
