@@ -1932,6 +1932,122 @@ def kleidung_bearbeiten(id):
         kleidungsstueck=kleidungsstueck
     )
 
+@app.route("/kleidung/neu", methods=["GET", "POST"])
+@login_required
+@geraetewart_required
+def kleidung_neu():
+    aktive_wehr = get_aktive_wehr_id()
+
+    if current_user.role == "admin":
+        wehren = lade_alle_wehren()
+    else:
+        wehren = []
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    db_execute(cursor, """
+        SELECT
+            id,
+            bezeichnung,
+            bereich,
+            sortierung
+        FROM kleidungsarten
+        WHERE aktiv = TRUE
+        ORDER BY bereich ASC, sortierung ASC, bezeichnung ASC
+    """)
+
+    kleidungsarten = cursor.fetchall()
+
+    if request.method == "POST":
+        kleidungsart_id = request.form.get("kleidungsart_id", "").strip()
+        groesse = request.form.get("groesse", "").strip()
+        hersteller = request.form.get("hersteller", "").strip()
+        interne_nummer = request.form.get("interne_nummer", "").strip()
+        barcode = request.form.get("barcode", "").strip()
+        bemerkung = request.form.get("bemerkung", "").strip()
+
+        if current_user.role == "admin":
+            wehr_id = request.form.get("wehr_id") or aktive_wehr
+
+            if not wehr_id:
+                verbindung.close()
+                flash("Bitte eine Wehr auswählen.", "danger")
+                return redirect(url_for("kleidung_neu"))
+        else:
+            wehr_id = current_user.wehr_id
+
+        if not kleidungsart_id:
+            verbindung.close()
+            flash("Bitte eine Kleidungsart auswählen.", "danger")
+            return redirect(url_for("kleidung_neu"))
+
+        try:
+            kleidungsart_id = int(kleidungsart_id)
+        except ValueError:
+            verbindung.close()
+            flash("Ungültige Kleidungsart.", "danger")
+            return redirect(url_for("kleidung_neu"))
+
+        try:
+            db_execute(cursor, """
+                INSERT INTO kleidung (
+                    wehr_id,
+                    kleidungsart_id,
+                    mitglied_id,
+                    groesse,
+                    hersteller,
+                    interne_nummer,
+                    barcode,
+                    status,
+                    waschzaehler,
+                    bemerkung,
+                    aktiv
+                )
+                VALUES (
+                    ?, ?, NULL, ?, ?, ?, ?,
+                    'Verfügbar', 0, ?, TRUE
+                )
+            """, (
+                wehr_id,
+                kleidungsart_id,
+                groesse or None,
+                hersteller or None,
+                interne_nummer or None,
+                barcode or None,
+                bemerkung or None
+            ))
+
+            verbindung.commit()
+
+            flash("Kleidungsstück wurde angelegt.", "success")
+
+            return redirect(url_for("kleidung"))
+
+        except Exception as e:
+            verbindung.rollback()
+
+            print("FEHLER kleidung_neu:", e)
+
+            flash(
+                "Kleidungsstück konnte nicht angelegt werden. "
+                "Barcode oder interne Nummer ist möglicherweise bereits vergeben.",
+                "danger"
+            )
+
+        finally:
+            verbindung.close()
+
+    else:
+        verbindung.close()
+
+    return render_template(
+        "kleidung_neu.html",
+        kleidungsarten=kleidungsarten,
+        wehren=wehren,
+        aktive_wehr=aktive_wehr
+    )
+
 @app.route("/kleidung")
 @login_required
 def kleidung():
