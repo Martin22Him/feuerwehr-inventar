@@ -1735,6 +1735,94 @@ def mitglied_neu():
         aktive_wehr=aktive_wehr
     )
 
+@app.route("/mitglieder/<int:id>")
+@login_required
+def mitglied_detail(id):
+    aktive_wehr = get_aktive_wehr_id()
+    bereich = request.args.get("bereich", "Einsatzkleidung")
+
+    if bereich not in ["Einsatzkleidung", "Ausgehuniform"]:
+        bereich = "Einsatzkleidung"
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    if aktive_wehr:
+        db_execute(cursor, """
+            SELECT
+                m.id,
+                m.wehr_id,
+                m.vorname,
+                m.nachname,
+                m.spindnummer,
+                m.aktiv,
+                m.bemerkung,
+                w.name AS wehr_name
+            FROM mitglieder m
+            LEFT JOIN wehren w ON m.wehr_id = w.id
+            WHERE m.id = ?
+              AND m.wehr_id = ?
+        """, (id, aktive_wehr))
+    else:
+        db_execute(cursor, """
+            SELECT
+                m.id,
+                m.wehr_id,
+                m.vorname,
+                m.nachname,
+                m.spindnummer,
+                m.aktiv,
+                m.bemerkung,
+                w.name AS wehr_name
+            FROM mitglieder m
+            LEFT JOIN wehren w ON m.wehr_id = w.id
+            WHERE m.id = ?
+        """, (id,))
+
+    mitglied = cursor.fetchone()
+
+    if not mitglied:
+        verbindung.close()
+        abort(404)
+
+    db_execute(cursor, """
+        SELECT
+            k.id,
+            k.groesse,
+            k.hersteller,
+            k.interne_nummer,
+            k.barcode,
+            k.status,
+            k.waschzaehler,
+            k.bemerkung,
+            k.aktiv,
+            ka.bezeichnung,
+            ka.bereich,
+            ka.sortierung
+        FROM kleidung k
+        JOIN kleidungsarten ka
+            ON k.kleidungsart_id = ka.id
+        WHERE k.mitglied_id = ?
+          AND k.wehr_id = ?
+          AND ka.bereich = ?
+        ORDER BY ka.sortierung ASC, ka.bezeichnung ASC
+    """, (
+        id,
+        mitglied["wehr_id"],
+        bereich
+    ))
+
+    kleidung_liste = cursor.fetchall()
+
+    verbindung.close()
+
+    return render_template(
+        "mitglied_detail.html",
+        mitglied=mitglied,
+        kleidung=kleidung_liste,
+        bereich=bereich
+    )
+
 @app.route("/kleidung")
 @login_required
 def kleidung():
