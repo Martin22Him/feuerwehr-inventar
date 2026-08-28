@@ -1581,7 +1581,7 @@ def mitglieder():
             w.name AS wehr_name
         FROM mitglieder m
         LEFT JOIN wehren w ON m.wehr_id = w.id
-        WHERE m.aktiv = 1
+        WHERE m.aktiv = TRUE
     """
 
     params = []
