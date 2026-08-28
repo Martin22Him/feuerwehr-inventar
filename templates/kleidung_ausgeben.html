@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .ausgabe-box {
+        max-width: 800px;
+    }
+
+    .ausgabe-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-top: 20px;
+    }
+
+    .ausgabe-section {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #fff;
+        padding: 20px;
+    }
+
+    .ausgabe-section h2 {
+        margin-top: 0;
+    }
+
+    .info-zeile {
+        margin-bottom: 12px;
+    }
+
+    .info-zeile strong {
+        display: inline-block;
+        min-width: 130px;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .form-group select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background: white;
+        font-size: 15px;
+    }
+
+    .info-box {
+        margin-top: 20px;
+        padding: 16px;
+        background: #f5f7fa;
+        border-radius: 8px;
+    }
+
+    .aktionen {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+    }
+
+    .btn-save {
+        border: none;
+        border-radius: 6px;
+        padding: 11px 18px;
+        cursor: pointer;
+        font-size: 15px;
+    }
+
+    @media (max-width: 750px) {
+        .ausgabe-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="box ausgabe-box">
+
+    <h1>Kleidungsstück ausgeben</h1>
+
+    <div class="ausgabe-grid">
+
+        <div class="ausgabe-section">
+
+            <h2>Kleidungsstück</h2>
+
+            <div class="info-zeile">
+                <strong>Art:</strong>
+                {{ kleidungsstueck["bezeichnung"] }}
+            </div>
+
+            <div class="info-zeile">
+                <strong>Bereich:</strong>
+                {{ kleidungsstueck["bereich"] }}
+            </div>
+
+            <div class="info-zeile">
+                <strong>Größe:</strong>
+                {{ kleidungsstueck["groesse"] or "-" }}
+            </div>
+
+            <div class="info-zeile">
+                <strong>Hersteller:</strong>
+                {{ kleidungsstueck["hersteller"] or "-" }}
+            </div>
+
+            <div class="info-zeile">
+                <strong>Interne Nr.:</strong>
+                {{ kleidungsstueck["interne_nummer"] or "-" }}
+            </div>
+
+            <div class="info-zeile">
+                <strong>Barcode:</strong>
+                {{ kleidungsstueck["barcode"] or "-" }}
+            </div>
+
+            <div class="info-zeile">
+                <strong>Status:</strong>
+                {{ kleidungsstueck["status"] }}
+            </div>
+
+        </div>
+
+
+        <div class="ausgabe-section">
+
+            <h2>Mitglied auswählen</h2>
+
+            <form method="POST">
+                <input
+                    type="hidden"
+                    name="csrf_token"
+                    value="{{ csrf_token() }}"
+                >
+
+                <div class="form-group">
+
+                    <label for="mitglied_id">
+                        Mitglied
+                    </label>
+
+                    <select
+                        id="mitglied_id"
+                        name="mitglied_id"
+                        required
+                    >
+
+                        <option value="">
+                            Bitte auswählen
+                        </option>
+
+                        {% for mitglied in mitglieder %}
+
+                            <option value="{{ mitglied['id'] }}">
+
+                                {{ mitglied["nachname"] }},
+                                {{ mitglied["vorname"] }}
+
+                                {% if mitglied["spindnummer"] %}
+                                    – Spind {{ mitglied["spindnummer"] }}
+                                {% endif %}
+
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+
+                </div>
+
+
+                <div class="aktionen">
+
+                    <button
+                        type="submit"
+                        class="btn-save"
+                    >
+                        An Mitglied ausgeben
+                    </button>
+
+                    <a href="{{ url_for('kleidung') }}">
+                        Abbrechen
+                    </a>
+
+                </div>
+
+            </form>
+
+        </div>
+
+    </div>
+
+
+    <div class="info-box">
+        Nach der Ausgabe wird das Kleidungsstück auf
+        <strong>Ausgegeben</strong> gesetzt und dauerhaft dem
+        ausgewählten Mitglied zugeordnet.
+    </div>
+
+</div>
+
+{% endblock %}
