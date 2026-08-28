@@ -1,0 +1,139 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .mitglieder-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .mitglieder-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .mitglieder-suche {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .mitglieder-suche input {
+        min-width: 280px;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 15px;
+    }
+
+    .mitglieder-suche button {
+        padding: 10px 16px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    .mitglieder-leer {
+        padding: 25px;
+        text-align: center;
+        color: #666;
+    }
+
+    @media (max-width: 700px) {
+        .mitglieder-suche input {
+            min-width: 0;
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="box">
+
+    <div class="mitglieder-header">
+        <div>
+            <h1>Mitglieder</h1>
+            <p>
+                Mitglieder und zugeordnete Einsatz- und Ausgehkleidung verwalten.
+            </p>
+        </div>
+
+        <div class="mitglieder-actions">
+            <a href="#" class="nav-button">
+                Mitglied hinzufügen
+            </a>
+
+            <a href="#" class="nav-button">
+                Mitglieder aus Excel importieren
+            </a>
+        </div>
+    </div>
+
+    <form method="GET" class="mitglieder-suche">
+        <input
+            type="text"
+            name="suche"
+            value="{{ suche }}"
+            placeholder="Name oder Spindnummer suchen..."
+        >
+
+        <button type="submit">
+            Suchen
+        </button>
+
+        {% if suche %}
+            <a href="{{ url_for('mitglieder') }}">
+                Suche zurücksetzen
+            </a>
+        {% endif %}
+    </form>
+
+    <div style="overflow-x: auto;">
+        <table class="inventar-tabelle">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Spindnummer</th>
+                    <th>Details</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% for mitglied in mitglieder %}
+                    <tr>
+                        <td>
+                            {{ mitglied["vorname"] }}
+                            {{ mitglied["nachname"] }}
+                        </td>
+
+                        <td>
+                            {{ mitglied["spindnummer"] or "-" }}
+                        </td>
+
+                        <td>
+                            <a href="#">
+                                Details
+                            </a>
+                        </td>
+                    </tr>
+                {% else %}
+                    <tr>
+                        <td colspan="3" class="mitglieder-leer">
+                            Keine Mitglieder gefunden.
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
+
+{% endblock %}
