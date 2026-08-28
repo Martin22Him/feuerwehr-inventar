@@ -1562,6 +1562,67 @@ def fahrzeuge_verwalten():
 
     return render_template("fahrzeuge_verwalten.html", fahrzeuge=fahrzeuge)
 
+@app.route("/mitglieder")
+@login_required
+def mitglieder():
+    aktive_wehr = get_aktive_wehr_id()
+    suche = request.args.get("suche", "").strip()
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    sql = """
+        SELECT
+            m.id,
+            m.vorname,
+            m.nachname,
+            m.spindnummer,
+            m.aktiv,
+            w.name AS wehr_name
+        FROM mitglieder m
+        LEFT JOIN wehren w ON m.wehr_id = w.id
+        WHERE m.aktiv = 1
+    """
+
+    params = []
+
+    if aktive_wehr:
+        sql += " AND m.wehr_id = ?"
+        params.append(aktive_wehr)
+
+    if suche:
+        sql += """
+            AND (
+                LOWER(m.vorname) LIKE LOWER(?)
+                OR LOWER(m.nachname) LIKE LOWER(?)
+                OR LOWER(m.vorname || ' ' || m.nachname) LIKE LOWER(?)
+                OR LOWER(m.nachname || ' ' || m.vorname) LIKE LOWER(?)
+                OR LOWER(COALESCE(m.spindnummer, '')) LIKE LOWER(?)
+            )
+        """
+
+        suchwert = f"%{suche}%"
+        params.extend([
+            suchwert,
+            suchwert,
+            suchwert,
+            suchwert,
+            suchwert
+        ])
+
+    sql += " ORDER BY m.nachname ASC, m.vorname ASC"
+
+    db_execute(cursor, sql, params)
+    mitglieder_liste = cursor.fetchall()
+
+    verbindung.close()
+
+    return render_template(
+        "mitglieder.html",
+        mitglieder=mitglieder_liste,
+        suche=suche
+    )
+
 @app.route("/kleidung")
 @login_required
 def kleidung():
