@@ -1,0 +1,438 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .kleiderkammer-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .kleiderkammer-header h1 {
+        margin-bottom: 5px;
+    }
+
+    .kleiderkammer-header p {
+        margin-top: 0;
+        color: #666;
+    }
+
+    .kleiderkammer-actions {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .filter-box {
+        background: #f5f7fa;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1.5fr 1fr auto;
+        gap: 12px;
+        align-items: end;
+    }
+
+    .filter-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 9px 10px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background: white;
+        font-size: 14px;
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .filter-actions button {
+        padding: 10px 14px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    .status {
+        display: inline-block;
+        padding: 5px 9px;
+        border-radius: 999px;
+        font-size: 13px;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    .status-verfuegbar {
+        background: #e7f6ea;
+    }
+
+    .status-ausgegeben {
+        background: #e8f0fb;
+    }
+
+    .status-waesche {
+        background: #fff3cd;
+    }
+
+    .zuordnung-name {
+        font-weight: 600;
+    }
+
+    .zuordnung-spind {
+        color: #666;
+        font-size: 13px;
+    }
+
+    .leer {
+        padding: 30px;
+        text-align: center;
+        color: #666;
+    }
+
+    .ergebnis-info {
+        margin-bottom: 12px;
+        color: #666;
+        font-size: 14px;
+    }
+
+    @media (max-width: 1100px) {
+        .filter-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+    }
+
+    @media (max-width: 700px) {
+        .filter-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="box">
+
+    <div class="kleiderkammer-header">
+
+        <div>
+            <h1>Kleiderkammer</h1>
+
+            <p>
+                Gesamtbestand der Bekleidung und persönliche Zuordnungen.
+            </p>
+        </div>
+
+        <div class="kleiderkammer-actions">
+
+            {% if current_user.role in ["admin", "geraetewart"] %}
+                <a href="#" class="nav-button">
+                    + Kleidungsstück anlegen
+                </a>
+            {% endif %}
+
+        </div>
+
+    </div>
+
+
+    <form method="GET" class="filter-box">
+
+        <div class="filter-grid">
+
+            <div class="filter-group">
+                <label for="suche">Suche</label>
+
+                <input
+                    type="text"
+                    id="suche"
+                    name="suche"
+                    value="{{ suche }}"
+                    placeholder="Name, Barcode, interne Nummer, Größe ..."
+                >
+            </div>
+
+
+            <div class="filter-group">
+                <label for="bereich">Bereich</label>
+
+                <select id="bereich" name="bereich">
+
+                    <option value="">
+                        Alle Bereiche
+                    </option>
+
+                    <option
+                        value="Einsatzkleidung"
+                        {% if bereich == "Einsatzkleidung" %}
+                            selected
+                        {% endif %}
+                    >
+                        Einsatzkleidung
+                    </option>
+
+                    <option
+                        value="Ausgehuniform"
+                        {% if bereich == "Ausgehuniform" %}
+                            selected
+                        {% endif %}
+                    >
+                        Ausgehuniform
+                    </option>
+
+                </select>
+            </div>
+
+
+            <div class="filter-group">
+                <label for="kleidungsart_id">
+                    Kleidungsart
+                </label>
+
+                <select
+                    id="kleidungsart_id"
+                    name="kleidungsart_id"
+                >
+
+                    <option value="">
+                        Alle Kleidungsarten
+                    </option>
+
+                    {% for art in kleidungsarten %}
+
+                        <option
+                            value="{{ art['id'] }}"
+                            {% if kleidungsart_id|string == art['id']|string %}
+                                selected
+                            {% endif %}
+                        >
+                            {{ art["bezeichnung"] }}
+                        </option>
+
+                    {% endfor %}
+
+                </select>
+            </div>
+
+
+            <div class="filter-group">
+                <label for="status">Status</label>
+
+                <select id="status" name="status">
+
+                    <option value="">
+                        Alle Status
+                    </option>
+
+                    <option
+                        value="Verfügbar"
+                        {% if status == "Verfügbar" %}
+                            selected
+                        {% endif %}
+                    >
+                        Verfügbar
+                    </option>
+
+                    <option
+                        value="Ausgegeben"
+                        {% if status == "Ausgegeben" %}
+                            selected
+                        {% endif %}
+                    >
+                        Ausgegeben
+                    </option>
+
+                    <option
+                        value="Zur Wäsche"
+                        {% if status == "Zur Wäsche" %}
+                            selected
+                        {% endif %}
+                    >
+                        Zur Wäsche
+                    </option>
+
+                </select>
+            </div>
+
+
+            <div class="filter-actions">
+
+                <button type="submit">
+                    Filtern
+                </button>
+
+                {% if suche or bereich or kleidungsart_id or status %}
+                    <a href="{{ url_for('kleidung') }}">
+                        Zurücksetzen
+                    </a>
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </form>
+
+
+    <div class="ergebnis-info">
+        {{ kleidung|length }}
+        {% if kleidung|length == 1 %}
+            Kleidungsstück
+        {% else %}
+            Kleidungsstücke
+        {% endif %}
+        gefunden
+    </div>
+
+
+    <div style="overflow-x: auto;">
+
+        <table class="inventar-tabelle">
+
+            <thead>
+                <tr>
+                    <th>Kleidungsart</th>
+                    <th>Größe</th>
+                    <th>Hersteller</th>
+                    <th>Interne Nr.</th>
+                    <th>Barcode</th>
+                    <th>Status</th>
+                    <th>Zuordnung</th>
+                    <th>Wäschen</th>
+                    <th>Bearbeiten</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for item in kleidung %}
+
+                    <tr>
+
+                        <td>
+                            {{ item["bezeichnung"] }}
+                        </td>
+
+                        <td>
+                            {{ item["groesse"] or "-" }}
+                        </td>
+
+                        <td>
+                            {{ item["hersteller"] or "-" }}
+                        </td>
+
+                        <td>
+                            {{ item["interne_nummer"] or "-" }}
+                        </td>
+
+                        <td>
+                            {{ item["barcode"] or "-" }}
+                        </td>
+
+                        <td>
+
+                            {% if item["status"] == "Verfügbar" %}
+
+                                <span class="status status-verfuegbar">
+                                    Verfügbar
+                                </span>
+
+                            {% elif item["status"] == "Zur Wäsche" %}
+
+                                <span class="status status-waesche">
+                                    🧺 Zur Wäsche
+                                </span>
+
+                            {% else %}
+
+                                <span class="status status-ausgegeben">
+                                    Ausgegeben
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+
+                            {% if item["mitglied_id"] %}
+
+                                <div class="zuordnung-name">
+                                    {{ item["vorname"] }}
+                                    {{ item["nachname"] }}
+                                </div>
+
+                                {% if item["spindnummer"] %}
+                                    <div class="zuordnung-spind">
+                                        Spind {{ item["spindnummer"] }}
+                                    </div>
+                                {% endif %}
+
+                            {% else %}
+
+                                -
+
+                            {% endif %}
+
+                        </td>
+
+                        <td>
+                            {{ item["waschzaehler"] }}
+                        </td>
+
+                        <td>
+
+                            {% if current_user.role in ["admin", "geraetewart"] %}
+
+                                <a href="{{ url_for(
+                                    'kleidung_bearbeiten',
+                                    id=item['id']
+                                ) }}">
+                                    Bearbeiten
+                                </a>
+
+                            {% else %}
+
+                                -
+
+                            {% endif %}
+
+                        </td>
+
+                    </tr>
+
+                {% else %}
+
+                    <tr>
+                        <td colspan="9" class="leer">
+                            Keine Kleidungsstücke gefunden.
+                        </td>
+                    </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+{% endblock %}
