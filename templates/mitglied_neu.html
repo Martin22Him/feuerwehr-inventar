@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .mitglied-form {
+        max-width: 850px;
+    }
+
+    .mitglied-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .mitglied-section {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 15px;
+    }
+
+    .form-group textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .mitglied-info {
+        background: #f5f7fa;
+        border-radius: 8px;
+        padding: 16px;
+        margin-top: 20px;
+    }
+
+    .mitglied-actions {
+        margin-top: 20px;
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+    }
+
+    .btn-save {
+        border: none;
+        border-radius: 6px;
+        padding: 11px 18px;
+        cursor: pointer;
+        font-size: 15px;
+    }
+
+    @media (max-width: 800px) {
+        .mitglied-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="box mitglied-form">
+
+    <h1>Mitglied hinzufügen</h1>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="mitglied-grid">
+
+            <div class="mitglied-section">
+                <h2>Mitglied</h2>
+
+                <div class="form-group">
+                    <label for="vorname">Vorname</label>
+                    <input
+                        type="text"
+                        id="vorname"
+                        name="vorname"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="nachname">Nachname</label>
+                    <input
+                        type="text"
+                        id="nachname"
+                        name="nachname"
+                        required
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="spindnummer">Spindnummer</label>
+                    <input
+                        type="text"
+                        id="spindnummer"
+                        name="spindnummer"
+                    >
+                </div>
+            </div>
+
+            <div class="mitglied-section">
+                <h2>Weitere Angaben</h2>
+
+                {% if current_user.role == "admin" %}
+                    <div class="form-group">
+                        <label for="wehr_id">Wehr</label>
+
+                        <select id="wehr_id" name="wehr_id" required>
+                            <option value="">Bitte auswählen</option>
+
+                            {% for wehr in wehren %}
+                                <option
+                                    value="{{ wehr['id'] }}"
+                                    {% if aktive_wehr and wehr['id']|string == aktive_wehr|string %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    {{ wehr["name"] }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+
+                <div class="form-group">
+                    <label for="bemerkung">Bemerkung</label>
+
+                    <textarea
+                        id="bemerkung"
+                        name="bemerkung"
+                    ></textarea>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="mitglied-info">
+            <strong>Standardkleidung</strong><br>
+            Beim Speichern werden automatisch alle vorgesehenen
+            Kleidungsstücke aus Einsatzkleidung und Ausgehuniform
+            angelegt und diesem Mitglied zugeordnet.
+        </div>
+
+        <div class="mitglied-actions">
+            <button type="submit" class="btn-save">
+                Mitglied speichern
+            </button>
+
+            <a href="{{ url_for('mitglieder') }}">
+                Abbrechen
+            </a>
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}
