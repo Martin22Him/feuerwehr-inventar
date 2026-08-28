@@ -1935,7 +1935,168 @@ def kleidung_bearbeiten(id):
 @app.route("/kleidung")
 @login_required
 def kleidung():
-    return "<h1>Kleidung folgt später</h1>"
+    aktive_wehr = get_aktive_wehr_id()
+
+    suche = request.args.get("suche", "").strip()
+    bereich = request.args.get("bereich", "").strip()
+    kleidungsart_id = request.args.get("kleidungsart_id", "").strip()
+    status = request.args.get("status", "").strip()
+
+    erlaubte_bereiche = [
+        "Einsatzkleidung",
+        "Ausgehuniform"
+    ]
+
+    erlaubte_status = [
+        "Verfügbar",
+        "Ausgegeben",
+        "Zur Wäsche"
+    ]
+
+    if bereich not in erlaubte_bereiche:
+        bereich = ""
+
+    if status not in erlaubte_status:
+        status = ""
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    sql = """
+        SELECT
+            k.id,
+            k.wehr_id,
+            k.groesse,
+            k.hersteller,
+            k.interne_nummer,
+            k.barcode,
+            k.status,
+            k.waschzaehler,
+            k.aktiv,
+
+            ka.id AS kleidungsart_id,
+            ka.bezeichnung,
+            ka.bereich,
+            ka.sortierung,
+
+            m.id AS mitglied_id,
+            m.vorname,
+            m.nachname,
+            m.spindnummer,
+
+            w.name AS wehr_name
+
+        FROM kleidung k
+
+        JOIN kleidungsarten ka
+            ON k.kleidungsart_id = ka.id
+
+        LEFT JOIN mitglieder m
+            ON k.mitglied_id = m.id
+
+        LEFT JOIN wehren w
+            ON k.wehr_id = w.id
+
+        WHERE k.aktiv = TRUE
+    """
+
+    params = []
+
+    # Aktuelle Wehr berücksichtigen
+    if aktive_wehr:
+        sql += " AND k.wehr_id = ?"
+        params.append(aktive_wehr)
+
+    # Bereich filtern
+    if bereich:
+        sql += " AND ka.bereich = ?"
+        params.append(bereich)
+
+    # Kleidungsart filtern
+    if kleidungsart_id:
+        try:
+            kleidungsart_id_int = int(kleidungsart_id)
+
+            sql += " AND ka.id = ?"
+            params.append(kleidungsart_id_int)
+
+        except ValueError:
+            kleidungsart_id = ""
+
+    # Status filtern
+    if status:
+        sql += " AND k.status = ?"
+        params.append(status)
+
+    # Suche
+    if suche:
+        suchwert = f"%{suche}%"
+
+        sql += """
+            AND (
+                LOWER(ka.bezeichnung) LIKE LOWER(?)
+                OR LOWER(COALESCE(k.groesse, '')) LIKE LOWER(?)
+                OR LOWER(COALESCE(k.hersteller, '')) LIKE LOWER(?)
+                OR LOWER(COALESCE(k.interne_nummer, '')) LIKE LOWER(?)
+                OR LOWER(COALESCE(k.barcode, '')) LIKE LOWER(?)
+                OR LOWER(COALESCE(m.vorname, '')) LIKE LOWER(?)
+                OR LOWER(COALESCE(m.nachname, '')) LIKE LOWER(?)
+                OR LOWER(
+                    COALESCE(m.vorname, '') || ' ' ||
+                    COALESCE(m.nachname, '')
+                ) LIKE LOWER(?)
+            )
+        """
+
+        params.extend([
+            suchwert,
+            suchwert,
+            suchwert,
+            suchwert,
+            suchwert,
+            suchwert,
+            suchwert,
+            suchwert
+        ])
+
+    sql += """
+        ORDER BY
+            ka.bereich ASC,
+            ka.sortierung ASC,
+            ka.bezeichnung ASC,
+            k.groesse ASC,
+            k.id ASC
+    """
+
+    db_execute(cursor, sql, params)
+    kleidung_liste = cursor.fetchall()
+
+    # Kleidungsarten für Filter laden
+    db_execute(cursor, """
+        SELECT
+            id,
+            bezeichnung,
+            bereich,
+            sortierung
+        FROM kleidungsarten
+        WHERE aktiv = TRUE
+        ORDER BY bereich ASC, sortierung ASC, bezeichnung ASC
+    """)
+
+    kleidungsarten = cursor.fetchall()
+
+    verbindung.close()
+
+    return render_template(
+        "kleidung.html",
+        kleidung=kleidung_liste,
+        kleidungsarten=kleidungsarten,
+        suche=suche,
+        bereich=bereich,
+        kleidungsart_id=kleidungsart_id,
+        status=status,
+        aktive_wehr=aktive_wehr
+    )
 
 @app.route("/geraet/neu", methods=["GET", "POST"])
 @login_required
