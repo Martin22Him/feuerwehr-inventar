@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .kleidung-neu {
+        max-width: 900px;
+    }
+
+    .kleidung-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .kleidung-section {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+    }
+
+    .kleidung-section h2 {
+        margin-top: 0;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group select,
+    .form-group textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 15px;
+    }
+
+    .form-group textarea {
+        min-height: 110px;
+        resize: vertical;
+    }
+
+    .info-box {
+        margin-top: 20px;
+        padding: 16px;
+        background: #f5f7fa;
+        border-radius: 8px;
+    }
+
+    .aktionen {
+        margin-top: 20px;
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+    }
+
+    .btn-save {
+        border: none;
+        border-radius: 6px;
+        padding: 11px 18px;
+        cursor: pointer;
+        font-size: 15px;
+    }
+
+    @media (max-width: 800px) {
+        .kleidung-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="box kleidung-neu">
+
+    <h1>Kleidungsstück anlegen</h1>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="kleidung-grid">
+
+            <div class="kleidung-section">
+
+                <h2>Kleidungsart</h2>
+
+                {% if current_user.role == "admin" %}
+                    <div class="form-group">
+                        <label for="wehr_id">Wehr</label>
+
+                        <select id="wehr_id" name="wehr_id" required>
+                            <option value="">
+                                Bitte auswählen
+                            </option>
+
+                            {% for wehr in wehren %}
+                                <option
+                                    value="{{ wehr['id'] }}"
+                                    {% if aktive_wehr and wehr['id']|string == aktive_wehr|string %}
+                                        selected
+                                    {% endif %}
+                                >
+                                    {{ wehr["name"] }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                {% endif %}
+
+                <div class="form-group">
+                    <label for="kleidungsart_id">
+                        Kleidungsart
+                    </label>
+
+                    <select
+                        id="kleidungsart_id"
+                        name="kleidungsart_id"
+                        required
+                    >
+
+                        <option value="">
+                            Bitte auswählen
+                        </option>
+
+                        {% for art in kleidungsarten %}
+
+                            <option value="{{ art['id'] }}">
+                                {{ art["bereich"] }}
+                                –
+                                {{ art["bezeichnung"] }}
+                            </option>
+
+                        {% endfor %}
+
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="groesse">Größe</label>
+
+                    <input
+                        type="text"
+                        id="groesse"
+                        name="groesse"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="hersteller">Hersteller</label>
+
+                    <input
+                        type="text"
+                        id="hersteller"
+                        name="hersteller"
+                    >
+                </div>
+
+            </div>
+
+
+            <div class="kleidung-section">
+
+                <h2>Kennzeichnung</h2>
+
+                <div class="form-group">
+                    <label for="interne_nummer">
+                        Interne Nummer
+                    </label>
+
+                    <input
+                        type="text"
+                        id="interne_nummer"
+                        name="interne_nummer"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="barcode">
+                        Barcode
+                    </label>
+
+                    <input
+                        type="text"
+                        id="barcode"
+                        name="barcode"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="bemerkung">
+                        Bemerkung
+                    </label>
+
+                    <textarea
+                        id="bemerkung"
+                        name="bemerkung"
+                    ></textarea>
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <div class="info-box">
+            Das Kleidungsstück wird zunächst als
+            <strong>Verfügbar</strong> in der Kleiderkammer gespeichert
+            und keinem Mitglied zugeordnet.
+        </div>
+
+
+        <div class="aktionen">
+
+            <button type="submit" class="btn-save">
+                Kleidungsstück speichern
+            </button>
+
+            <a href="{{ url_for('kleidung') }}">
+                Abbrechen
+            </a>
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}
