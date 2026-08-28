@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .mitglied-kopf {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .mitglied-meta {
+        color: #666;
+        line-height: 1.7;
+    }
+
+    .bereich-tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+    }
+
+    .bereich-tab {
+        display: inline-block;
+        padding: 10px 18px;
+        border-radius: 6px;
+        text-decoration: none;
+        border: 1px solid #bbb;
+        background: #f5f5f5;
+        color: #222;
+    }
+
+    .bereich-tab.aktiv {
+        font-weight: bold;
+        background: #e5e5e5;
+        border-color: #888;
+    }
+
+    .kleidung-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 18px;
+    }
+
+    .kleidung-card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #fff;
+        padding: 18px;
+    }
+
+    .kleidung-card h3 {
+        margin-top: 0;
+        margin-bottom: 16px;
+    }
+
+    .kleidung-daten {
+        display: grid;
+        grid-template-columns: 130px 1fr;
+        gap: 8px 12px;
+        margin-bottom: 15px;
+    }
+
+    .kleidung-label {
+        font-weight: 600;
+    }
+
+    .status-ausgegeben {
+        font-weight: bold;
+    }
+
+    .status-waesche {
+        font-weight: bold;
+    }
+
+    .kleidung-actions {
+        margin-top: 15px;
+    }
+
+    .leer {
+        padding: 25px;
+        text-align: center;
+        color: #666;
+    }
+
+    @media (max-width: 850px) {
+        .kleidung-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="box">
+
+    <div class="mitglied-kopf">
+        <div>
+            <h1>
+                {{ mitglied["vorname"] }}
+                {{ mitglied["nachname"] }}
+            </h1>
+
+            <div class="mitglied-meta">
+                <div>
+                    <strong>Spindnummer:</strong>
+                    {{ mitglied["spindnummer"] or "-" }}
+                </div>
+
+                {% if mitglied["bemerkung"] %}
+                    <div>
+                        <strong>Bemerkung:</strong>
+                        {{ mitglied["bemerkung"] }}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div>
+            <a href="{{ url_for('mitglieder') }}">
+                ← Zurück zur Mitgliederliste
+            </a>
+        </div>
+    </div>
+
+    <div class="bereich-tabs">
+
+        <a
+            href="{{ url_for('mitglied_detail', id=mitglied['id'], bereich='Einsatzkleidung') }}"
+            class="bereich-tab {% if bereich == 'Einsatzkleidung' %}aktiv{% endif %}"
+        >
+            Einsatzkleidung
+        </a>
+
+        <a
+            href="{{ url_for('mitglied_detail', id=mitglied['id'], bereich='Ausgehuniform') }}"
+            class="bereich-tab {% if bereich == 'Ausgehuniform' %}aktiv{% endif %}"
+        >
+            Ausgehuniform
+        </a>
+
+    </div>
+
+    <h2>{{ bereich }}</h2>
+
+    <div class="kleidung-grid">
+
+        {% for item in kleidung %}
+
+            <div class="kleidung-card">
+
+                <h3>{{ item["bezeichnung"] }}</h3>
+
+                <div class="kleidung-daten">
+
+                    <div class="kleidung-label">Größe</div>
+                    <div>{{ item["groesse"] or "-" }}</div>
+
+                    <div class="kleidung-label">Hersteller</div>
+                    <div>{{ item["hersteller"] or "-" }}</div>
+
+                    <div class="kleidung-label">Interne Nr.</div>
+                    <div>{{ item["interne_nummer"] or "-" }}</div>
+
+                    <div class="kleidung-label">Barcode</div>
+                    <div>{{ item["barcode"] or "-" }}</div>
+
+                    <div class="kleidung-label">Status</div>
+                    <div>
+                        {% if item["status"] == "Zur Wäsche" %}
+                            <span class="status-waesche">
+                                🧺 Zur Wäsche
+                            </span>
+                        {% else %}
+                            <span class="status-ausgegeben">
+                                {{ item["status"] }}
+                            </span>
+                        {% endif %}
+                    </div>
+
+                    <div class="kleidung-label">Waschvorgänge</div>
+                    <div>{{ item["waschzaehler"] }}</div>
+
+                </div>
+
+                <div class="kleidung-actions">
+                    <a href="#">
+                        Bearbeiten
+                    </a>
+                </div>
+
+            </div>
+
+        {% else %}
+
+            <div class="leer">
+                Keine Kleidung in diesem Bereich vorhanden.
+            </div>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+{% endblock %}
