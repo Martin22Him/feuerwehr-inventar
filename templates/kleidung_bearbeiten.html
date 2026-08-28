@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .kleidung-edit {
+        max-width: 900px;
+    }
+
+    .edit-kopf {
+        margin-bottom: 20px;
+    }
+
+    .edit-kopf .untertitel {
+        color: #666;
+        margin-top: 5px;
+    }
+
+    .edit-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+    }
+
+    .edit-section {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+    }
+
+    .edit-section h2 {
+        margin-top: 0;
+    }
+
+    .form-group {
+        margin-bottom: 16px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .form-group input,
+    .form-group textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 15px;
+    }
+
+    .form-group textarea {
+        min-height: 110px;
+        resize: vertical;
+    }
+
+    .info-zeile {
+        margin-bottom: 12px;
+    }
+
+    .info-zeile strong {
+        display: inline-block;
+        min-width: 130px;
+    }
+
+    .status-box {
+        margin-top: 20px;
+        padding: 16px;
+        border-radius: 8px;
+        background: #f5f7fa;
+    }
+
+    .aktionen {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+    }
+
+    .btn-save {
+        border: none;
+        border-radius: 6px;
+        padding: 11px 18px;
+        cursor: pointer;
+        font-size: 15px;
+    }
+
+    @media (max-width: 800px) {
+        .edit-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+<div class="box kleidung-edit">
+
+    <div class="edit-kopf">
+        <h1>{{ kleidungsstueck["bezeichnung"] }}</h1>
+
+        <div class="untertitel">
+            Kleidungsdaten bearbeiten
+        </div>
+    </div>
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="edit-grid">
+
+            <div class="edit-section">
+
+                <h2>Kleidungsstück</h2>
+
+                <div class="form-group">
+                    <label for="groesse">Größe</label>
+                    <input
+                        type="text"
+                        id="groesse"
+                        name="groesse"
+                        value="{{ kleidungsstueck['groesse'] or '' }}"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="hersteller">Hersteller</label>
+                    <input
+                        type="text"
+                        id="hersteller"
+                        name="hersteller"
+                        value="{{ kleidungsstueck['hersteller'] or '' }}"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="interne_nummer">Interne Nummer</label>
+                    <input
+                        type="text"
+                        id="interne_nummer"
+                        name="interne_nummer"
+                        value="{{ kleidungsstueck['interne_nummer'] or '' }}"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="barcode">Barcode</label>
+                    <input
+                        type="text"
+                        id="barcode"
+                        name="barcode"
+                        value="{{ kleidungsstueck['barcode'] or '' }}"
+                    >
+                </div>
+
+            </div>
+
+            <div class="edit-section">
+
+                <h2>Zuordnung</h2>
+
+                <div class="info-zeile">
+                    <strong>Kleidungsart:</strong>
+                    {{ kleidungsstueck["bezeichnung"] }}
+                </div>
+
+                <div class="info-zeile">
+                    <strong>Bereich:</strong>
+                    {{ kleidungsstueck["bereich"] }}
+                </div>
+
+                <div class="info-zeile">
+                    <strong>Mitglied:</strong>
+
+                    {% if kleidungsstueck["mitglied_id"] %}
+                        {{ kleidungsstueck["vorname"] }}
+                        {{ kleidungsstueck["nachname"] }}
+                    {% else %}
+                        Kleiderkammer
+                    {% endif %}
+                </div>
+
+                <div class="info-zeile">
+                    <strong>Status:</strong>
+                    {{ kleidungsstueck["status"] }}
+                </div>
+
+                <div class="info-zeile">
+                    <strong>Waschvorgänge:</strong>
+                    {{ kleidungsstueck["waschzaehler"] }}
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                    <label for="bemerkung">Bemerkung</label>
+
+                    <textarea
+                        id="bemerkung"
+                        name="bemerkung"
+                    >{{ kleidungsstueck["bemerkung"] or "" }}</textarea>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="status-box">
+            Status, Wäsche und Mitgliederzuordnung werden später über eigene
+            Funktionen geändert und können hier bewusst nicht manuell bearbeitet werden.
+        </div>
+
+        <div class="aktionen">
+
+            <button type="submit" class="btn-save">
+                Speichern
+            </button>
+
+            {% if kleidungsstueck["mitglied_id"] %}
+                <a href="{{ url_for(
+                    'mitglied_detail',
+                    id=kleidungsstueck['mitglied_id'],
+                    bereich=kleidungsstueck['bereich']
+                ) }}">
+                    Abbrechen
+                </a>
+            {% else %}
+                <a href="{{ url_for('kleidung') }}">
+                    Abbrechen
+                </a>
+            {% endif %}
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}
