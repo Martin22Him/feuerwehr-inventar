@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .waesche-box {
+        max-width: 750px;
+    }
+
+    .waesche-card {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 20px;
+    }
+
+    .info-zeile {
+        margin-bottom: 12px;
+    }
+
+    .info-zeile strong {
+        display: inline-block;
+        min-width: 150px;
+    }
+
+    .info-box {
+        margin-top: 20px;
+        padding: 16px;
+        background: #f5f7fa;
+        border-radius: 8px;
+    }
+
+    .aktionen {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+    }
+
+    .btn-save {
+        border: none;
+        border-radius: 6px;
+        padding: 11px 18px;
+        cursor: pointer;
+        font-size: 15px;
+    }
+</style>
+
+<div class="box waesche-box">
+
+    <h1>Aus Wäsche zurück</h1>
+
+    <div class="waesche-card">
+
+        <div class="info-zeile">
+            <strong>Kleidungsart:</strong>
+            {{ kleidungsstueck["bezeichnung"] }}
+        </div>
+
+        <div class="info-zeile">
+            <strong>Größe:</strong>
+            {{ kleidungsstueck["groesse"] or "-" }}
+        </div>
+
+        <div class="info-zeile">
+            <strong>Mitglied:</strong>
+            {{ kleidungsstueck["vorname"] }}
+            {{ kleidungsstueck["nachname"] }}
+        </div>
+
+        <div class="info-zeile">
+            <strong>Waschzähler bisher:</strong>
+            {{ kleidungsstueck["waschzaehler"] }}
+        </div>
+
+    </div>
+
+    <div class="info-box">
+        Nach der Bestätigung wird das Kleidungsstück wieder auf
+        <strong>Ausgegeben</strong> gesetzt. Die Zuordnung zum Mitglied
+        bleibt bestehen und der Waschzähler erhöht sich um 1.
+    </div>
+
+    <form method="POST">
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token() }}"
+        >
+
+        <div class="aktionen">
+
+            <button
+                type="submit"
+                class="btn-save"
+            >
+                Rückkehr bestätigen
+            </button>
+
+            <a href="{{ url_for('kleidung') }}">
+                Abbrechen
+            </a>
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}
