@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .rueckgabe-box {
+        max-width: 750px;
+    }
+
+    .rueckgabe-card {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #fff;
+        padding: 20px;
+        margin-top: 20px;
+    }
+
+    .info-zeile {
+        margin-bottom: 12px;
+    }
+
+    .info-zeile strong {
+        display: inline-block;
+        min-width: 140px;
+    }
+
+    .warn-box {
+        margin-top: 20px;
+        padding: 16px;
+        border-radius: 8px;
+        background: #fff3cd;
+    }
+
+    .aktionen {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+    }
+
+    .btn-rueckgabe {
+        border: none;
+        border-radius: 6px;
+        padding: 11px 18px;
+        cursor: pointer;
+        font-size: 15px;
+    }
+</style>
+
+<div class="box rueckgabe-box">
+
+    <h1>Kleidungsstück zurückgeben</h1>
+
+    <div class="rueckgabe-card">
+
+        <div class="info-zeile">
+            <strong>Kleidungsart:</strong>
+            {{ kleidungsstueck["bezeichnung"] }}
+        </div>
+
+        <div class="info-zeile">
+            <strong>Größe:</strong>
+            {{ kleidungsstueck["groesse"] or "-" }}
+        </div>
+
+        <div class="info-zeile">
+            <strong>Interne Nr.:</strong>
+            {{ kleidungsstueck["interne_nummer"] or "-" }}
+        </div>
+
+        <div class="info-zeile">
+            <strong>Barcode:</strong>
+            {{ kleidungsstueck["barcode"] or "-" }}
+        </div>
+
+        <div class="info-zeile">
+            <strong>Aktuelles Mitglied:</strong>
+
+            {{ kleidungsstueck["vorname"] }}
+            {{ kleidungsstueck["nachname"] }}
+
+            {% if kleidungsstueck["spindnummer"] %}
+                – Spind {{ kleidungsstueck["spindnummer"] }}
+            {% endif %}
+        </div>
+
+        <div class="info-zeile">
+            <strong>Status:</strong>
+            {{ kleidungsstueck["status"] }}
+        </div>
+
+    </div>
+
+    <div class="warn-box">
+        Nach der Rückgabe wird die Zuordnung zum Mitglied entfernt.
+        Das Kleidungsstück erhält den Status
+        <strong>Verfügbar</strong> und steht wieder in der Kleiderkammer zur Ausgabe bereit.
+    </div>
+
+    <form method="POST">
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token() }}"
+        >
+
+        <div class="aktionen">
+
+            <button
+                type="submit"
+                class="btn-rueckgabe"
+            >
+                Rückgabe bestätigen
+            </button>
+
+            <a href="{{ url_for('kleidung') }}">
+                Abbrechen
+            </a>
+
+        </div>
+    </form>
+
+</div>
+
+{% endblock %}
