@@ -428,6 +428,17 @@
                                      ) }}">
                                          Zurückgeben
                                      </a> 
+
+                                  {% elif item["status"] == "Zur Wäsche" and item["mitglied_id"] %}
+
+                                     &nbsp;|&nbsp;
+ 
+                                     <a href="{{ url_for(
+                                          'kleidung_aus_waesche_zurueck',
+                                          id=item['id']
+                                     ) }}">
+                                          Aus Wäsche zurück
+                                     </a>
                             
                                  {% endif %}
 
