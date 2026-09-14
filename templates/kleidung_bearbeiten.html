@@ -253,7 +253,7 @@
                                     <strong>Zur Wäsche:</strong><br>
 
                                     {% if eintrag["zur_waesche_am"] %}
-                                        {{ eintrag["zur_waesche_am"].strftime("%d.%m.%Y %H:%M") }}
+                                        {{ eintrag["zur_waesche_am"].strftime("%d.%m.%Y") }}
                                     {% else %}
                                         -
                                     {% endif %}
@@ -263,7 +263,7 @@
                                     <strong>Zurück:</strong><br>
 
                                     {% if eintrag["zurueck_am"] %}
-                                        {{ eintrag["zurueck_am"].strftime("%d.%m.%Y %H:%M") }}
+                                        {{ eintrag["zurueck_am"].strftime("%d.%m.%Y") }}
                                     {% else %}
                                         <span class="waesche-status-offen">
                                             Noch in der Wäsche
