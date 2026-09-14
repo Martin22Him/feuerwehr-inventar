@@ -4,7 +4,7 @@
 
 <style>
     .kleidung-edit {
-        max-width: 900px;
+        max-width: 1300px;
     }
 
     .edit-kopf {
@@ -18,7 +18,7 @@
 
     .edit-grid {
         display: grid;
-        grid-template-columns: 1fr 1fr;
+        grid-template-columns: 1fr 1fr 1fr;
         gap: 20px;
     }
 
@@ -67,6 +67,35 @@
         min-width: 130px;
     }
 
+    .waesche-historie {
+        max-height: 360px;
+        overflow-y: auto;
+        padding-right: 6px;
+    }
+
+    .waesche-eintrag {
+        padding: 12px 0;
+        border-bottom: 1px solid #ddd;
+        line-height: 1.4;
+    }
+
+    .waesche-eintrag:first-child {
+        padding-top: 0;
+    }
+
+    .waesche-eintrag:last-child {
+        border-bottom: none;
+    }
+
+    .waesche-leer {
+        color: #666;
+        margin: 0;
+    }
+
+    .waesche-status-offen {
+        font-weight: 600;
+    }
+
     .status-box {
         margin-top: 20px;
         padding: 16px;
@@ -89,7 +118,7 @@
         font-size: 15px;
     }
 
-    @media (max-width: 800px) {
+    @media (max-width: 1100px) {
         .edit-grid {
             grid-template-columns: 1fr;
         }
@@ -111,6 +140,7 @@
 
         <div class="edit-grid">
 
+            <!-- Kleidungsstück -->
             <div class="edit-section">
 
                 <h2>Kleidungsstück</h2>
@@ -157,6 +187,8 @@
 
             </div>
 
+
+            <!-- Zuordnung -->
             <div class="edit-section">
 
                 <h2>Zuordnung</h2>
@@ -203,12 +235,73 @@
 
             </div>
 
+
+            <!-- Wäschehistorie -->
+            <div class="edit-section">
+
+                <h2>Wäschehistorie</h2>
+
+                {% if waesche_historie %}
+
+                    <div class="waesche-historie">
+
+                        {% for eintrag in waesche_historie %}
+
+                            <div class="waesche-eintrag">
+
+                                <div>
+                                    <strong>Zur Wäsche:</strong><br>
+
+                                    {% if eintrag["zur_waesche_am"] %}
+                                        {{ eintrag["zur_waesche_am"].strftime("%d.%m.%Y %H:%M") }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </div>
+
+                                <div style="margin-top: 8px;">
+                                    <strong>Zurück:</strong><br>
+
+                                    {% if eintrag["zurueck_am"] %}
+                                        {{ eintrag["zurueck_am"].strftime("%d.%m.%Y %H:%M") }}
+                                    {% else %}
+                                        <span class="waesche-status-offen">
+                                            Noch in der Wäsche
+                                        </span>
+                                    {% endif %}
+                                </div>
+
+                                {% if eintrag["bemerkung"] %}
+                                    <div style="margin-top: 8px;">
+                                        <strong>Bemerkung:</strong><br>
+                                        {{ eintrag["bemerkung"] }}
+                                    </div>
+                                {% endif %}
+
+                            </div>
+
+                        {% endfor %}
+
+                    </div>
+
+                {% else %}
+
+                    <p class="waesche-leer">
+                        Noch keine Waschvorgänge vorhanden.
+                    </p>
+
+                {% endif %}
+
+            </div>
+
         </div>
 
+
         <div class="status-box">
-            Status, Wäsche und Mitgliederzuordnung werden später über eigene
+            Status, Wäsche und Mitgliederzuordnung werden über eigene
             Funktionen geändert und können hier bewusst nicht manuell bearbeitet werden.
         </div>
+
 
         <div class="aktionen">
 
