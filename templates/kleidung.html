@@ -418,6 +418,17 @@
                                          Ausgeben
                                      </a>
 
+                                  {% elif item["status"] == "Ausgegeben" and item["mitglied_id"] %}
+
+                                     &nbsp;|&nbsp;
+
+                                     <a href="{{ url_for(
+                                          'kleidung_zurueckgeben',
+                                          id=item['id']
+                                     ) }}">
+                                         Zurückgeben
+                                     </a> 
+                            
                                  {% endif %}
 
                             {% else %}
