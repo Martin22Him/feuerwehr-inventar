@@ -2227,6 +2227,141 @@ def kleidung_ausgeben(id):
         mitglieder=mitglieder
     )
 
+@app.route("/kleidung/<int:id>/zurueckgeben", methods=["GET", "POST"])
+@login_required
+@geraetewart_required
+def kleidung_zurueckgeben(id):
+    aktive_wehr = get_aktive_wehr_id()
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    if aktive_wehr:
+        db_execute(cursor, """
+            SELECT
+                k.id,
+                k.wehr_id,
+                k.mitglied_id,
+                k.status,
+                k.aktiv,
+                k.groesse,
+                k.hersteller,
+                k.interne_nummer,
+                k.barcode,
+                ka.bezeichnung,
+                ka.bereich,
+                m.vorname,
+                m.nachname,
+                m.spindnummer
+            FROM kleidung k
+            JOIN kleidungsarten ka
+                ON k.kleidungsart_id = ka.id
+            LEFT JOIN mitglieder m
+                ON k.mitglied_id = m.id
+            WHERE k.id = ?
+              AND k.wehr_id = ?
+        """, (id, aktive_wehr))
+    else:
+        db_execute(cursor, """
+            SELECT
+                k.id,
+                k.wehr_id,
+                k.mitglied_id,
+                k.status,
+                k.aktiv,
+                k.groesse,
+                k.hersteller,
+                k.interne_nummer,
+                k.barcode,
+                ka.bezeichnung,
+                ka.bereich,
+                m.vorname,
+                m.nachname,
+                m.spindnummer
+            FROM kleidung k
+            JOIN kleidungsarten ka
+                ON k.kleidungsart_id = ka.id
+            LEFT JOIN mitglieder m
+                ON k.mitglied_id = m.id
+            WHERE k.id = ?
+        """, (id,))
+
+    kleidungsstueck = cursor.fetchone()
+
+    if not kleidungsstueck:
+        verbindung.close()
+        abort(404)
+
+    if not kleidungsstueck["aktiv"]:
+        verbindung.close()
+        flash("Dieses Kleidungsstück ist außer Dienst.", "danger")
+        return redirect(url_for("kleidung"))
+
+    if kleidungsstueck["status"] != "Ausgegeben":
+        verbindung.close()
+        flash(
+            "Nur ausgegebene Kleidungsstücke können zurückgegeben werden.",
+            "danger"
+        )
+        return redirect(url_for("kleidung"))
+
+    if not kleidungsstueck["mitglied_id"]:
+        verbindung.close()
+        flash(
+            "Dieses Kleidungsstück ist keinem Mitglied zugeordnet.",
+            "danger"
+        )
+        return redirect(url_for("kleidung"))
+
+    if request.method == "POST":
+        mitglied_id = kleidungsstueck["mitglied_id"]
+
+        try:
+            db_execute(cursor, """
+                UPDATE kleidung
+                SET mitglied_id = NULL,
+                    status = 'Verfügbar'
+                WHERE id = ?
+                  AND wehr_id = ?
+                  AND aktiv = TRUE
+                  AND status = 'Ausgegeben'
+                  AND mitglied_id = ?
+            """, (
+                id,
+                kleidungsstueck["wehr_id"],
+                mitglied_id
+            ))
+
+            verbindung.commit()
+
+            flash(
+                "Kleidungsstück wurde zurückgegeben und ist wieder verfügbar.",
+                "success"
+            )
+
+            return redirect(url_for("kleidung"))
+
+        except Exception as e:
+            verbindung.rollback()
+
+            print("FEHLER kleidung_zurueckgeben:", e)
+
+            flash(
+                "Kleidungsstück konnte nicht zurückgegeben werden.",
+                "danger"
+            )
+
+        finally:
+            verbindung.close()
+
+    else:
+        verbindung.close()
+
+    return render_template(
+        "kleidung_zurueckgeben.html",
+        kleidungsstueck=kleidungsstueck
+    )
+
 @app.route("/kleidung")
 @login_required
 def kleidung():
@@ -3470,3 +3605,4 @@ def wehr_neu():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
