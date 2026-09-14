@@ -1925,11 +1925,26 @@ def kleidung_bearbeiten(id):
         finally:
             verbindung.close()
 
+    # Wäschehistorie laden
+    db_execute(cursor, """
+        SELECT
+            id,
+            zur_waesche_am,
+            zurueck_am,
+            bemerkung
+        FROM waesche_historie
+        WHERE kleidung_id = ?
+        ORDER BY zur_waesche_am DESC
+    """, (id,))
+
+    waesche_historie = cursor.fetchall()
+    
     verbindung.close()
 
     return render_template(
         "kleidung_bearbeiten.html",
-        kleidungsstueck=kleidungsstueck
+        kleidungsstueck=kleidungsstueck,
+        waesche_historie=waesche_historie
     )
 
 @app.route("/kleidung/neu", methods=["GET", "POST"])
@@ -3903,6 +3918,7 @@ def wehr_neu():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
 
