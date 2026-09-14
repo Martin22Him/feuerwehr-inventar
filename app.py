@@ -2511,6 +2511,155 @@ def kleidung_zur_waesche(id):
         kleidungsstueck=kleidungsstueck
     )
 
+@app.route("/kleidung/<int:id>/waesche/zurueck", methods=["GET", "POST"])
+@login_required
+@geraetewart_required
+def kleidung_aus_waesche_zurueck(id):
+    aktive_wehr = get_aktive_wehr_id()
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    if aktive_wehr:
+        db_execute(cursor, """
+            SELECT
+                k.id,
+                k.wehr_id,
+                k.mitglied_id,
+                k.status,
+                k.aktiv,
+                k.waschzaehler,
+                k.groesse,
+                k.interne_nummer,
+                k.barcode,
+                ka.bezeichnung,
+                ka.bereich,
+                m.vorname,
+                m.nachname,
+                m.spindnummer
+            FROM kleidung k
+            JOIN kleidungsarten ka
+                ON k.kleidungsart_id = ka.id
+            LEFT JOIN mitglieder m
+                ON k.mitglied_id = m.id
+            WHERE k.id = ?
+              AND k.wehr_id = ?
+        """, (id, aktive_wehr))
+    else:
+        db_execute(cursor, """
+            SELECT
+                k.id,
+                k.wehr_id,
+                k.mitglied_id,
+                k.status,
+                k.aktiv,
+                k.waschzaehler,
+                k.groesse,
+                k.interne_nummer,
+                k.barcode,
+                ka.bezeichnung,
+                ka.bereich,
+                m.vorname,
+                m.nachname,
+                m.spindnummer
+            FROM kleidung k
+            JOIN kleidungsarten ka
+                ON k.kleidungsart_id = ka.id
+            LEFT JOIN mitglieder m
+                ON k.mitglied_id = m.id
+            WHERE k.id = ?
+        """, (id,))
+
+    kleidungsstueck = cursor.fetchone()
+
+    if not kleidungsstueck:
+        verbindung.close()
+        abort(404)
+
+    if not kleidungsstueck["aktiv"]:
+        verbindung.close()
+        flash("Dieses Kleidungsstück ist außer Dienst.", "danger")
+        return redirect(url_for("kleidung"))
+
+    if kleidungsstueck["status"] != "Zur Wäsche":
+        verbindung.close()
+        flash(
+            "Dieses Kleidungsstück befindet sich nicht in der Wäsche.",
+            "danger"
+        )
+        return redirect(url_for("kleidung"))
+
+    if not kleidungsstueck["mitglied_id"]:
+        verbindung.close()
+        flash(
+            "Für dieses Kleidungsstück fehlt die Mitgliedszuordnung.",
+            "danger"
+        )
+        return redirect(url_for("kleidung"))
+
+    if request.method == "POST":
+        try:
+            db_execute(cursor, """
+                UPDATE kleidung
+                SET status = 'Ausgegeben',
+                    waschzaehler = waschzaehler + 1
+                WHERE id = ?
+                  AND wehr_id = ?
+                  AND aktiv = TRUE
+                  AND status = 'Zur Wäsche'
+            """, (
+                id,
+                kleidungsstueck["wehr_id"]
+            ))
+
+            db_execute(cursor, """
+                UPDATE waesche_historie
+                SET zurueck_am = CURRENT_TIMESTAMP
+                WHERE id = (
+                    SELECT id
+                    FROM waesche_historie
+                    WHERE kleidung_id = ?
+                      AND zurueck_am IS NULL
+                    ORDER BY zur_waesche_am DESC
+                    LIMIT 1
+                )
+            """, (id,))
+
+            verbindung.commit()
+
+            flash(
+                "Kleidungsstück ist aus der Wäsche zurück. "
+                "Der Waschzähler wurde erhöht.",
+                "success"
+            )
+
+            return redirect(url_for(
+                "mitglied_detail",
+                id=kleidungsstueck["mitglied_id"],
+                bereich=kleidungsstueck["bereich"]
+            ))
+
+        except Exception as e:
+            verbindung.rollback()
+
+            print("FEHLER kleidung_aus_waesche_zurueck:", e)
+
+            flash(
+                "Rückkehr aus der Wäsche konnte nicht gespeichert werden.",
+                "danger"
+            )
+
+        finally:
+            verbindung.close()
+
+    else:
+        verbindung.close()
+
+    return render_template(
+        "kleidung_waesche_zurueck.html",
+        kleidungsstueck=kleidungsstueck
+    )
+
 @app.route("/kleidung")
 @login_required
 def kleidung():
@@ -3754,5 +3903,6 @@ def wehr_neu():
 
 if __name__ == "__main__":
     app.run(debug=True)
+
 
 
