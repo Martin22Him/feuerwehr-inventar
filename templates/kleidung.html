@@ -423,6 +423,15 @@
                                      &nbsp;|&nbsp;
 
                                      <a href="{{ url_for(
+                                          'kleidung_zur_waesche',
+                                          id=item['id']
+                                     ) }}">
+                                          Zur Wäsche
+                                     </a>
+                            
+                                     &nbsp;|&nbsp;
+
+                                     <a href="{{ url_for(
                                           'kleidung_zurueckgeben',
                                           id=item['id']
                                      ) }}">
