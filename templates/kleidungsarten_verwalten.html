@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .kleidungsarten-box {
+        max-width: 1000px;
+    }
+
+    .seiten-kopf {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .seiten-kopf h1 {
+        margin: 0;
+    }
+
+    .untertitel {
+        color: #666;
+        margin-top: 5px;
+    }
+
+    .bereich {
+        margin-top: 25px;
+    }
+
+    .bereich h2 {
+        margin-bottom: 10px;
+    }
+
+    .kleidungsart-zeile {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 13px 15px;
+        border: 1px solid #ddd;
+        border-bottom: none;
+        background: #fff;
+    }
+
+    .kleidungsart-zeile:first-of-type {
+        border-radius: 8px 8px 0 0;
+    }
+
+    .kleidungsart-zeile:last-of-type {
+        border-bottom: 1px solid #ddd;
+        border-radius: 0 0 8px 8px;
+    }
+
+    .kleidungsart-zeile:only-of-type {
+        border-bottom: 1px solid #ddd;
+        border-radius: 8px;
+    }
+
+    .kleidungsart-zeile input[type="checkbox"] {
+        width: 19px;
+        height: 19px;
+        cursor: pointer;
+    }
+
+    .kleidungsart-name {
+        font-weight: 600;
+    }
+
+    .aktionen {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 25px;
+    }
+
+    .btn-save {
+        border: none;
+        border-radius: 6px;
+        padding: 11px 18px;
+        cursor: pointer;
+        font-size: 15px;
+    }
+
+    .hinweis {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 8px;
+        background: #f5f7fa;
+        line-height: 1.5;
+    }
+</style>
+
+
+<div class="box kleidungsarten-box">
+
+    <div class="seiten-kopf">
+
+        <div>
+            <h1>Kleidungsarten</h1>
+
+            <div class="untertitel">
+                Standardausstattung für neue Mitglieder festlegen
+            </div>
+        </div>
+
+    </div>
+
+
+    <form method="POST">
+
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token() }}"
+        >
+
+
+        <!-- Einsatzkleidung -->
+
+        <div class="bereich">
+
+            <h2>Einsatzkleidung</h2>
+
+            {% for art in kleidungsarten %}
+
+                {% if art["bereich"] == "Einsatzkleidung" %}
+
+                    <label class="kleidungsart-zeile">
+
+                        <input
+                            type="checkbox"
+                            name="standard_kleidungsarten"
+                            value="{{ art['id'] }}"
+                            {% if art["ist_wehr_standard"] %}
+                                checked
+                            {% endif %}
+                        >
+
+                        <span class="kleidungsart-name">
+                            {{ art["bezeichnung"] }}
+                        </span>
+
+                    </label>
+
+                {% endif %}
+
+            {% endfor %}
+
+        </div>
+
+
+        <!-- Ausgehuniform -->
+
+        <div class="bereich">
+
+            <h2>Ausgehuniform</h2>
+
+            {% for art in kleidungsarten %}
+
+                {% if art["bereich"] == "Ausgehuniform" %}
+
+                    <label class="kleidungsart-zeile">
+
+                        <input
+                            type="checkbox"
+                            name="standard_kleidungsarten"
+                            value="{{ art['id'] }}"
+                            {% if art["ist_wehr_standard"] %}
+                                checked
+                            {% endif %}
+                        >
+
+                        <span class="kleidungsart-name">
+                            {{ art["bezeichnung"] }}
+                        </span>
+
+                    </label>
+
+                {% endif %}
+
+            {% endfor %}
+
+        </div>
+
+
+        <div class="hinweis">
+            Ausgewählte Kleidungsarten werden später beim Anlegen eines
+            neuen Mitglieds automatisch erstellt. Änderungen an dieser
+            Auswahl verändern bestehende Mitglieder nicht.
+        </div>
+
+
+        <div class="aktionen">
+
+            <button
+                type="submit"
+                class="btn-save"
+            >
+                Standardausstattung speichern
+            </button>
+
+            <a href="{{ url_for('kleidung') }}">
+                Zurück zur Kleiderkammer
+            </a>
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}
