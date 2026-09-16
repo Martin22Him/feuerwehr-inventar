@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .kleidungsart-neu {
+        max-width: 700px;
+    }
+
+    .seiten-kopf {
+        margin-bottom: 20px;
+    }
+
+    .seiten-kopf h1 {
+        margin-bottom: 5px;
+    }
+
+    .untertitel {
+        color: #666;
+    }
+
+    .form-section {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 18px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .form-group input[type="text"],
+    .form-group select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 15px;
+        background: #fff;
+    }
+
+    .standard-auswahl {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        margin-top: 20px;
+        padding: 15px;
+        background: #f5f7fa;
+        border-radius: 8px;
+        cursor: pointer;
+    }
+
+    .standard-auswahl input {
+        width: 19px;
+        height: 19px;
+        margin-top: 2px;
+        flex-shrink: 0;
+    }
+
+    .standard-auswahl strong {
+        display: block;
+        margin-bottom: 4px;
+    }
+
+    .standard-hinweis {
+        color: #666;
+        font-size: 14px;
+        line-height: 1.4;
+    }
+
+    .aktionen {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+    }
+
+    .btn-save {
+        border: none;
+        border-radius: 6px;
+        padding: 11px 18px;
+        cursor: pointer;
+        font-size: 15px;
+    }
+</style>
+
+
+<div class="box kleidungsart-neu">
+
+    <div class="seiten-kopf">
+
+        <h1>Neue Kleidungsart</h1>
+
+        <div class="untertitel">
+            Neue Kleidungsart für die Kleiderverwaltung anlegen
+        </div>
+
+    </div>
+
+
+    <form method="POST">
+
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token() }}"
+        >
+
+
+        <div class="form-section">
+
+            <div class="form-group">
+
+                <label for="bezeichnung">
+                    Bezeichnung
+                </label>
+
+                <input
+                    type="text"
+                    id="bezeichnung"
+                    name="bezeichnung"
+                    value="{{ bezeichnung or '' }}"
+                    placeholder="z. B. Softshelljacke"
+                    required
+                >
+
+            </div>
+
+
+            <div class="form-group">
+
+                <label for="bereich">
+                    Bereich
+                </label>
+
+                <select
+                    id="bereich"
+                    name="bereich"
+                    required
+                >
+
+                    <option value="">
+                        Bitte auswählen
+                    </option>
+
+                    <option
+                        value="Einsatzkleidung"
+                        {% if bereich == "Einsatzkleidung" %}
+                            selected
+                        {% endif %}
+                    >
+                        Einsatzkleidung
+                    </option>
+
+                    <option
+                        value="Ausgehuniform"
+                        {% if bereich == "Ausgehuniform" %}
+                            selected
+                        {% endif %}
+                    >
+                        Ausgehuniform
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <label class="standard-auswahl">
+
+                <input
+                    type="checkbox"
+                    name="als_standard"
+                    value="1"
+                    {% if als_standard %}
+                        checked
+                    {% endif %}
+                >
+
+                <span>
+
+                    <strong>
+                        Als Standardausstattung festlegen
+                    </strong>
+
+                    <span class="standard-hinweis">
+                        Diese Kleidungsart soll bei zukünftigen neuen
+                        Mitgliedern der aktuell ausgewählten Wehr
+                        automatisch berücksichtigt werden.
+                    </span>
+
+                </span>
+
+            </label>
+
+        </div>
+
+
+        <div class="aktionen">
+
+            <button
+                type="submit"
+                class="btn-save"
+            >
+                Kleidungsart anlegen
+            </button>
+
+            <a href="{{ url_for('kleidungsarten_verwalten') }}">
+                Abbrechen
+            </a>
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}
