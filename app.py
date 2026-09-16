@@ -2841,6 +2841,137 @@ def kleidung():
         aktive_wehr=aktive_wehr
     )
 
+@app.route("/kleidung/arten", methods=["GET", "POST"])
+@login_required
+@geraetewart_required
+def kleidungsarten_verwalten():
+    aktive_wehr = get_aktive_wehr_id()
+
+    # Ohne ausgewählte Wehr kann keine Standardausstattung
+    # verwaltet werden.
+    if not aktive_wehr:
+        flash("Bitte zuerst eine Wehr auswählen.", "danger")
+        return redirect(url_for("kleidung"))
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    # ---------------------------------------------------------
+    # Standardausstattung speichern
+    # ---------------------------------------------------------
+    if request.method == "POST":
+
+        ausgewaehlte_ids = request.form.getlist("standard_kleidungsarten")
+
+        try:
+            ausgewaehlte_ids = [
+                int(kleidungsart_id)
+                for kleidungsart_id in ausgewaehlte_ids
+            ]
+        except ValueError:
+            verbindung.close()
+
+            flash(
+                "Die Standardausstattung konnte nicht gespeichert werden.",
+                "danger"
+            )
+
+            return redirect(url_for("kleidungsarten_verwalten"))
+
+        try:
+            # Bisherige Standardausstattung dieser Wehr entfernen
+            db_execute(cursor, """
+                DELETE FROM wehr_kleidungsstandard
+                WHERE wehr_id = ?
+            """, (aktive_wehr,))
+
+            # Neue Auswahl speichern
+            for kleidungsart_id in ausgewaehlte_ids:
+
+                # Nur aktive und tatsächlich vorhandene
+                # Kleidungsarten übernehmen
+                db_execute(cursor, """
+                    SELECT id
+                    FROM kleidungsarten
+                    WHERE id = ?
+                      AND aktiv = TRUE
+                """, (kleidungsart_id,))
+
+                kleidungsart = cursor.fetchone()
+
+                if kleidungsart:
+                    db_execute(cursor, """
+                        INSERT INTO wehr_kleidungsstandard (
+                            wehr_id,
+                            kleidungsart_id
+                        )
+                        VALUES (?, ?)
+                    """, (
+                        aktive_wehr,
+                        kleidungsart_id
+                    ))
+
+            verbindung.commit()
+
+            flash(
+                "Standardausstattung wurde gespeichert.",
+                "success"
+            )
+
+        except Exception as e:
+            verbindung.rollback()
+
+            print("FEHLER kleidungsarten_verwalten:", e)
+
+            flash(
+                "Standardausstattung konnte nicht gespeichert werden.",
+                "danger"
+            )
+
+        finally:
+            verbindung.close()
+
+        return redirect(url_for("kleidungsarten_verwalten"))
+
+    # ---------------------------------------------------------
+    # Kleidungsarten laden
+    # ---------------------------------------------------------
+    db_execute(cursor, """
+        SELECT
+            ka.id,
+            ka.bezeichnung,
+            ka.bereich,
+            ka.sortierung,
+
+            CASE
+                WHEN wks.id IS NOT NULL THEN TRUE
+                ELSE FALSE
+            END AS ist_wehr_standard
+
+        FROM kleidungsarten ka
+
+        LEFT JOIN wehr_kleidungsstandard wks
+            ON wks.kleidungsart_id = ka.id
+           AND wks.wehr_id = ?
+
+        WHERE ka.aktiv = TRUE
+
+        ORDER BY
+            ka.bereich ASC,
+            ka.sortierung ASC,
+            ka.bezeichnung ASC
+    """, (aktive_wehr,))
+
+    kleidungsarten = cursor.fetchall()
+
+    verbindung.close()
+
+    return render_template(
+        "kleidungsarten_verwalten.html",
+        kleidungsarten=kleidungsarten,
+        aktive_wehr=aktive_wehr
+    )
+
 @app.route("/geraet/neu", methods=["GET", "POST"])
 @login_required
 @geraetewart_required
