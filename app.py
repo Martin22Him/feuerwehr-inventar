@@ -2972,6 +2972,149 @@ def kleidungsarten_verwalten():
         aktive_wehr=aktive_wehr
     )
 
+@app.route("/kleidung/arten/neu", methods=["GET", "POST"])
+@login_required
+@geraetewart_required
+def kleidungsart_neu():
+    aktive_wehr = get_aktive_wehr_id()
+
+    if not aktive_wehr:
+        flash("Bitte zuerst eine Wehr auswählen.", "danger")
+        return redirect(url_for("kleidungsarten_verwalten"))
+
+    erlaubte_bereiche = [
+        "Einsatzkleidung",
+        "Ausgehuniform"
+    ]
+
+    if request.method == "POST":
+        bezeichnung = request.form.get("bezeichnung", "").strip()
+        bereich = request.form.get("bereich", "").strip()
+        als_standard = request.form.get("als_standard") == "1"
+
+        if not bezeichnung:
+            flash("Bitte eine Bezeichnung eingeben.", "danger")
+            return render_template(
+                "kleidungsart_neu.html",
+                bezeichnung=bezeichnung,
+                bereich=bereich,
+                als_standard=als_standard
+            )
+
+        if bereich not in erlaubte_bereiche:
+            flash("Bitte einen gültigen Bereich auswählen.", "danger")
+            return render_template(
+                "kleidungsart_neu.html",
+                bezeichnung=bezeichnung,
+                bereich=bereich,
+                als_standard=als_standard
+            )
+
+        verbindung = hole_db_verbindung()
+        cursor = verbindung.cursor()
+
+        try:
+            # Prüfen, ob die Kleidungsart bereits existiert
+            db_execute(cursor, """
+                SELECT id
+                FROM kleidungsarten
+                WHERE LOWER(bezeichnung) = LOWER(?)
+            """, (bezeichnung,))
+
+            vorhandene_art = cursor.fetchone()
+
+            if vorhandene_art:
+                verbindung.close()
+
+                flash(
+                    "Eine Kleidungsart mit dieser Bezeichnung existiert bereits.",
+                    "danger"
+                )
+
+                return render_template(
+                    "kleidungsart_neu.html",
+                    bezeichnung=bezeichnung,
+                    bereich=bereich,
+                    als_standard=als_standard
+                )
+
+            # Nächste Sortierungsnummer für den Bereich bestimmen
+            db_execute(cursor, """
+                SELECT COALESCE(MAX(sortierung), 0) + 1 AS neue_sortierung
+                FROM kleidungsarten
+                WHERE bereich = ?
+            """, (bereich,))
+
+            sortierung_row = cursor.fetchone()
+            neue_sortierung = sortierung_row["neue_sortierung"]
+
+            # Neue Kleidungsart anlegen
+            db_execute(cursor, """
+                INSERT INTO kleidungsarten (
+                    bezeichnung,
+                    bereich,
+                    sortierung,
+                    ist_standard,
+                    aktiv
+                )
+                VALUES (?, ?, ?, FALSE, TRUE)
+            """, (
+                bezeichnung,
+                bereich,
+                neue_sortierung
+            ))
+
+            # ID der neu angelegten Kleidungsart holen
+            if DATABASE_URL:
+                db_execute(cursor, "SELECT LASTVAL() AS id")
+                neue_art_row = cursor.fetchone()
+                neue_art_id = neue_art_row["id"]
+            else:
+                neue_art_id = cursor.lastrowid
+
+            # Falls gewünscht:
+            # Kleidungsart direkt als Standard für diese Wehr eintragen
+            if als_standard:
+                db_execute(cursor, """
+                    INSERT INTO wehr_kleidungsstandard (
+                        wehr_id,
+                        kleidungsart_id
+                    )
+                    VALUES (?, ?)
+                """, (
+                    aktive_wehr,
+                    neue_art_id
+                ))
+
+            verbindung.commit()
+
+            flash(
+                f"Kleidungsart „{bezeichnung}“ wurde angelegt.",
+                "success"
+            )
+
+            return redirect(url_for("kleidungsarten_verwalten"))
+
+        except Exception as e:
+            verbindung.rollback()
+
+            print("FEHLER kleidungsart_neu:", e)
+
+            flash(
+                "Kleidungsart konnte nicht angelegt werden.",
+                "danger"
+            )
+
+        finally:
+            verbindung.close()
+
+    return render_template(
+        "kleidungsart_neu.html",
+        bezeichnung="",
+        bereich="",
+        als_standard=False
+    )
+
 @app.route("/geraet/neu", methods=["GET", "POST"])
 @login_required
 @geraetewart_required
