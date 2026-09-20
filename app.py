@@ -1657,6 +1657,9 @@ def mitglied_neu():
         cursor = verbindung.cursor()
 
         try:
+            # -------------------------------------------------
+            # Mitglied anlegen
+            # -------------------------------------------------
             db_execute(cursor, """
                 INSERT INTO mitglieder (
                     wehr_id,
@@ -1675,22 +1678,38 @@ def mitglied_neu():
                 bemerkung
             ))
 
+            # ID des neu angelegten Mitglieds ermitteln
             if USING_POSTGRES:
                 db_execute(cursor, "SELECT LASTVAL() AS id")
                 mitglied_id = cursor.fetchone()["id"]
             else:
                 mitglied_id = cursor.lastrowid
 
+            # -------------------------------------------------
+            # Standardkleidung der ausgewählten Wehr laden
+            # -------------------------------------------------
             db_execute(cursor, """
-                SELECT id
-                FROM kleidungsarten
-                WHERE aktiv = TRUE
-                  AND ist_standard = TRUE
-                ORDER BY bereich, sortierung
-            """)
+                SELECT
+                    ka.id
+                FROM wehr_kleidungsstandard wks
+
+                JOIN kleidungsarten ka
+                    ON wks.kleidungsart_id = ka.id
+
+                WHERE wks.wehr_id = ?
+                  AND ka.aktiv = TRUE
+
+                ORDER BY
+                    ka.bereich ASC,
+                    ka.sortierung ASC,
+                    ka.bezeichnung ASC
+            """, (wehr_id,))
 
             standard_kleidungsarten = cursor.fetchall()
 
+            # -------------------------------------------------
+            # Standardkleidung dem neuen Mitglied zuordnen
+            # -------------------------------------------------
             for kleidungsart in standard_kleidungsarten:
                 db_execute(cursor, """
                     INSERT INTO kleidung (
@@ -1711,7 +1730,7 @@ def mitglied_neu():
             verbindung.commit()
 
             flash(
-                f"Mitglied {vorname} {nachname} wurde mit Standardkleidung angelegt.",
+                f"Mitglied {vorname} {nachname} wurde mit der Standardkleidung der Wehr angelegt.",
                 "success"
             )
 
@@ -1719,6 +1738,7 @@ def mitglied_neu():
 
         except Exception as e:
             verbindung.rollback()
+
             print("FEHLER mitglied_neu:", e)
 
             flash(
