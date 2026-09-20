@@ -3540,6 +3540,179 @@ def kleidungsart_neu():
         als_standard=False
     )
 
+@app.route("/kleidung/<int:id>/aussondern", methods=["GET", "POST"])
+@login_required
+@geraetewart_required
+def kleidung_aussondern(id):
+    aktive_wehr = get_aktive_wehr_id()
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    # ---------------------------------------------------------
+    # Kleidungsstück laden
+    # ---------------------------------------------------------
+    if aktive_wehr:
+        db_execute(cursor, """
+            SELECT
+                k.id,
+                k.wehr_id,
+                k.mitglied_id,
+                k.groesse,
+                k.hersteller,
+                k.interne_nummer,
+                k.barcode,
+                k.status,
+                k.waschzaehler,
+                k.bemerkung,
+                k.aktiv,
+                ka.bezeichnung,
+                ka.bereich,
+                m.vorname,
+                m.nachname
+            FROM kleidung k
+            JOIN kleidungsarten ka
+                ON k.kleidungsart_id = ka.id
+            LEFT JOIN mitglieder m
+                ON k.mitglied_id = m.id
+            WHERE k.id = ?
+              AND k.wehr_id = ?
+              AND k.aktiv = TRUE
+        """, (
+            id,
+            aktive_wehr
+        ))
+    else:
+        db_execute(cursor, """
+            SELECT
+                k.id,
+                k.wehr_id,
+                k.mitglied_id,
+                k.groesse,
+                k.hersteller,
+                k.interne_nummer,
+                k.barcode,
+                k.status,
+                k.waschzaehler,
+                k.bemerkung,
+                k.aktiv,
+                ka.bezeichnung,
+                ka.bereich,
+                m.vorname,
+                m.nachname
+            FROM kleidung k
+            JOIN kleidungsarten ka
+                ON k.kleidungsart_id = ka.id
+            LEFT JOIN mitglieder m
+                ON k.mitglied_id = m.id
+            WHERE k.id = ?
+              AND k.aktiv = TRUE
+        """, (id,))
+
+    kleidungsstueck = cursor.fetchone()
+
+    if not kleidungsstueck:
+        verbindung.close()
+        abort(404)
+
+    # ---------------------------------------------------------
+    # Kleidungsstück darf nicht während eines Waschvorgangs
+    # ausgesondert werden
+    # ---------------------------------------------------------
+    if kleidungsstueck["status"] == "Zur Wäsche":
+        verbindung.close()
+
+        flash(
+            "Das Kleidungsstück kann nicht ausgesondert werden, "
+            "solange es sich in der Wäsche befindet.",
+            "danger"
+        )
+
+        if kleidungsstueck["mitglied_id"]:
+            return redirect(url_for(
+                "mitglied_detail",
+                id=kleidungsstueck["mitglied_id"],
+                bereich=kleidungsstueck["bereich"]
+            ))
+
+        return redirect(url_for("kleidung"))
+
+    # ---------------------------------------------------------
+    # Aussondern
+    # ---------------------------------------------------------
+    if request.method == "POST":
+        aussonderungsgrund = request.form.get(
+            "aussonderungsgrund",
+            ""
+        ).strip()
+
+        if not aussonderungsgrund:
+            verbindung.close()
+
+            flash(
+                "Bitte einen Aussonderungsgrund angeben.",
+                "danger"
+            )
+
+            return redirect(url_for(
+                "kleidung_aussondern",
+                id=id
+            ))
+
+        mitglied_id = kleidungsstueck["mitglied_id"]
+        bereich = kleidungsstueck["bereich"]
+
+        try:
+            db_execute(cursor, """
+                UPDATE kleidung
+                SET aktiv = FALSE,
+                    ausgesondert_am = CURRENT_TIMESTAMP,
+                    aussonderungsgrund = ?,
+                    mitglied_id = NULL
+                WHERE id = ?
+                  AND aktiv = TRUE
+            """, (
+                aussonderungsgrund,
+                id
+            ))
+
+            verbindung.commit()
+
+            flash(
+                f"{kleidungsstueck['bezeichnung']} wurde ausgesondert.",
+                "success"
+            )
+
+            if mitglied_id:
+                return redirect(url_for(
+                    "mitglied_detail",
+                    id=mitglied_id,
+                    bereich=bereich
+                ))
+
+            return redirect(url_for("kleidung"))
+
+        except Exception as e:
+            verbindung.rollback()
+
+            print("FEHLER kleidung_aussondern:", e)
+
+            flash(
+                "Das Kleidungsstück konnte nicht ausgesondert werden.",
+                "danger"
+            )
+
+        finally:
+            verbindung.close()
+
+    else:
+        verbindung.close()
+
+    return render_template(
+        "kleidung_aussondern.html",
+        kleidungsstueck=kleidungsstueck
+    )
+
 @app.route("/geraet/neu", methods=["GET", "POST"])
 @login_required
 @geraetewart_required
