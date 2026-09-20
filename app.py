@@ -2020,6 +2020,200 @@ def mitglied_kleidung_hinzufuegen(id):
         kleidungsarten=kleidungsarten
     )
 
+@app.route("/kleidung/<int:id>/eintrag-entfernen", methods=["POST"])
+@login_required
+@geraetewart_required
+def kleidung_eintrag_entfernen(id):
+    aktive_wehr = get_aktive_wehr_id()
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    try:
+        # Kleidungsstück laden
+        if aktive_wehr:
+            db_execute(cursor, """
+                SELECT
+                    k.id,
+                    k.wehr_id,
+                    k.mitglied_id,
+                    k.groesse,
+                    k.hersteller,
+                    k.interne_nummer,
+                    k.barcode,
+                    k.status,
+                    k.waschzaehler,
+                    k.bemerkung,
+                    ka.bezeichnung,
+                    ka.bereich
+                FROM kleidung k
+                JOIN kleidungsarten ka
+                    ON k.kleidungsart_id = ka.id
+                WHERE k.id = ?
+                  AND k.wehr_id = ?
+                  AND k.aktiv = TRUE
+            """, (
+                id,
+                aktive_wehr
+            ))
+        else:
+            db_execute(cursor, """
+                SELECT
+                    k.id,
+                    k.wehr_id,
+                    k.mitglied_id,
+                    k.groesse,
+                    k.hersteller,
+                    k.interne_nummer,
+                    k.barcode,
+                    k.status,
+                    k.waschzaehler,
+                    k.bemerkung,
+                    ka.bezeichnung,
+                    ka.bereich
+                FROM kleidung k
+                JOIN kleidungsarten ka
+                    ON k.kleidungsart_id = ka.id
+                WHERE k.id = ?
+                  AND k.aktiv = TRUE
+            """, (id,))
+
+        kleidungsstueck = cursor.fetchone()
+
+        if not kleidungsstueck:
+            abort(404)
+
+        mitglied_id = kleidungsstueck["mitglied_id"]
+        bereich = kleidungsstueck["bereich"]
+
+        # Nur Einträge entfernen, die einem Mitglied zugeordnet sind
+        if not mitglied_id:
+            flash(
+                "Dieser Eintrag ist keinem Mitglied zugeordnet.",
+                "danger"
+            )
+            return redirect(url_for("kleidung"))
+
+        # -----------------------------------------------------
+        # Prüfen, ob bereits Inventardaten vorhanden sind
+        # -----------------------------------------------------
+        hat_inventardaten = any([
+            kleidungsstueck["groesse"],
+            kleidungsstueck["hersteller"],
+            kleidungsstueck["interne_nummer"],
+            kleidungsstueck["barcode"],
+            kleidungsstueck["bemerkung"]
+        ])
+
+        if hat_inventardaten:
+            flash(
+                "Der Eintrag kann nicht entfernt werden, "
+                "weil bereits Daten zum Kleidungsstück eingetragen wurden.",
+                "danger"
+            )
+
+            return redirect(url_for(
+                "mitglied_detail",
+                id=mitglied_id,
+                bereich=bereich
+            ))
+
+        # -----------------------------------------------------
+        # Waschzähler prüfen
+        # -----------------------------------------------------
+        if kleidungsstueck["waschzaehler"] > 0:
+            flash(
+                "Der Eintrag kann nicht entfernt werden, "
+                "weil bereits Waschvorgänge dokumentiert wurden.",
+                "danger"
+            )
+
+            return redirect(url_for(
+                "mitglied_detail",
+                id=mitglied_id,
+                bereich=bereich
+            ))
+
+        # -----------------------------------------------------
+        # Wäschehistorie zusätzlich direkt prüfen
+        # -----------------------------------------------------
+        db_execute(cursor, """
+            SELECT COUNT(*) AS anzahl
+            FROM waesche_historie
+            WHERE kleidung_id = ?
+        """, (id,))
+
+        historie = cursor.fetchone()
+
+        if historie["anzahl"] > 0:
+            flash(
+                "Der Eintrag kann nicht entfernt werden, "
+                "weil bereits eine Wäschehistorie vorhanden ist.",
+                "danger"
+            )
+
+            return redirect(url_for(
+                "mitglied_detail",
+                id=mitglied_id,
+                bereich=bereich
+            ))
+
+        # -----------------------------------------------------
+        # Status prüfen
+        # -----------------------------------------------------
+        if kleidungsstueck["status"] != "Ausgegeben":
+            flash(
+                "Der Eintrag kann in seinem aktuellen Status "
+                "nicht entfernt werden.",
+                "danger"
+            )
+
+            return redirect(url_for(
+                "mitglied_detail",
+                id=mitglied_id,
+                bereich=bereich
+            ))
+
+        # -----------------------------------------------------
+        # Wirklich löschen
+        # -----------------------------------------------------
+        db_execute(cursor, """
+            DELETE FROM kleidung
+            WHERE id = ?
+              AND mitglied_id = ?
+        """, (
+            id,
+            mitglied_id
+        ))
+
+        verbindung.commit()
+
+        flash(
+            f"{kleidungsstueck['bezeichnung']} wurde beim Mitglied entfernt.",
+            "success"
+        )
+
+        return redirect(url_for(
+            "mitglied_detail",
+            id=mitglied_id,
+            bereich=bereich
+        ))
+
+    except Exception as e:
+        verbindung.rollback()
+
+        print("FEHLER kleidung_eintrag_entfernen:", e)
+
+        flash(
+            "Der Eintrag konnte nicht entfernt werden.",
+            "danger"
+        )
+
+        return redirect(url_for("mitglieder"))
+
+    finally:
+        verbindung.close()
+
 @app.route("/kleidung/<int:id>/bearbeiten", methods=["GET", "POST"])
 @login_required
 @geraetewart_required
