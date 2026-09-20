@@ -1767,6 +1767,9 @@ def mitglied_detail(id):
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
 
+    # ---------------------------------------------------------
+    # Mitglied laden
+    # ---------------------------------------------------------
     if aktive_wehr:
         db_execute(cursor, """
             SELECT
@@ -1779,10 +1782,14 @@ def mitglied_detail(id):
                 m.bemerkung,
                 w.name AS wehr_name
             FROM mitglieder m
-            LEFT JOIN wehren w ON m.wehr_id = w.id
+            LEFT JOIN wehren w
+                ON m.wehr_id = w.id
             WHERE m.id = ?
               AND m.wehr_id = ?
-        """, (id, aktive_wehr))
+        """, (
+            id,
+            aktive_wehr
+        ))
     else:
         db_execute(cursor, """
             SELECT
@@ -1795,7 +1802,8 @@ def mitglied_detail(id):
                 m.bemerkung,
                 w.name AS wehr_name
             FROM mitglieder m
-            LEFT JOIN wehren w ON m.wehr_id = w.id
+            LEFT JOIN wehren w
+                ON m.wehr_id = w.id
             WHERE m.id = ?
         """, (id,))
 
@@ -1805,6 +1813,9 @@ def mitglied_detail(id):
         verbindung.close()
         abort(404)
 
+    # ---------------------------------------------------------
+    # Kleidung des Mitglieds laden
+    # ---------------------------------------------------------
     db_execute(cursor, """
         SELECT
             k.id,
@@ -1818,36 +1829,37 @@ def mitglied_detail(id):
             k.aktiv,
             ka.bezeichnung,
             ka.bereich,
-            ka.sortierung
+            ka.sortierung,
+
             CASE
                 WHEN k.groesse IS NULL
-                AND k.hersteller IS NULL
-                AND k.interne_nummer IS NULL
-                AND k.barcode IS NULL
-                AND k.bemerkung IS NULL
-                AND k.waschzaehler = 0
-                AND k.status = 'Ausgegeben'
-                AND NOT EXISTS (
-                    SELECT 1
-                    FROM waesche_historie wh
-                    WHERE wh.kleidung_id = k.id
-                )
-               THEN TRUE
-               ELSE FALSE
-           END AS darf_entfernt_werden
+                 AND k.hersteller IS NULL
+                 AND k.interne_nummer IS NULL
+                 AND k.barcode IS NULL
+                 AND k.bemerkung IS NULL
+                 AND k.waschzaehler = 0
+                 AND k.status = 'Ausgegeben'
+                 AND NOT EXISTS (
+                     SELECT 1
+                     FROM waesche_historie wh
+                     WHERE wh.kleidung_id = k.id
+                 )
+                THEN TRUE
+                ELSE FALSE
+            END AS darf_entfernt_werden
 
-       FROM kleidung k
+        FROM kleidung k
 
-       JOIN kleidungsarten ka
-           ON k.kleidungsart_id = ka.id
+        JOIN kleidungsarten ka
+            ON k.kleidungsart_id = ka.id
 
-       WHERE k.mitglied_id = ?
-         AND k.wehr_id = ?
-         AND ka.bereich = ?
+        WHERE k.mitglied_id = ?
+          AND k.wehr_id = ?
+          AND ka.bereich = ?
 
-       ORDER BY
-           ka.sortierung ASC,
-           ka.bezeichnung ASC
+        ORDER BY
+            ka.sortierung ASC,
+            ka.bezeichnung ASC
     """, (
         id,
         mitglied["wehr_id"],
