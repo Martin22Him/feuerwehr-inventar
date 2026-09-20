@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .aussondern-box {
+        max-width: 800px;
+    }
+
+    .warnung {
+        padding: 16px;
+        margin-bottom: 20px;
+        border: 1px solid #d8a0a0;
+        border-radius: 8px;
+        background: #fff5f5;
+        line-height: 1.6;
+    }
+
+    .kleidung-info {
+        display: grid;
+        grid-template-columns: 160px 1fr;
+        gap: 9px 15px;
+        padding: 20px;
+        margin-bottom: 20px;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .info-label {
+        font-weight: 600;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 7px;
+    }
+
+    .form-group textarea {
+        width: 100%;
+        box-sizing: border-box;
+        min-height: 110px;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font: inherit;
+        resize: vertical;
+    }
+
+    .aktionen {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .btn-aussondern {
+        border: none;
+        border-radius: 6px;
+        padding: 11px 18px;
+        background: #b42318;
+        color: white;
+        cursor: pointer;
+        font-size: 15px;
+    }
+
+    @media (max-width: 650px) {
+        .kleidung-info {
+            grid-template-columns: 1fr;
+        }
+
+        .info-label {
+            margin-top: 6px;
+        }
+    }
+</style>
+
+
+<div class="box aussondern-box">
+
+    <h1>Kleidungsstück aussondern</h1>
+
+
+    <div class="warnung">
+        <strong>Achtung:</strong>
+        Das Kleidungsstück wird dauerhaft ausgesondert und steht danach
+        nicht mehr für eine Ausgabe zur Verfügung.
+    </div>
+
+
+    <div class="kleidung-info">
+
+        <div class="info-label">Kleidungsart</div>
+        <div>{{ kleidungsstueck["bezeichnung"] }}</div>
+
+        <div class="info-label">Größe</div>
+        <div>{{ kleidungsstueck["groesse"] or "-" }}</div>
+
+        <div class="info-label">Hersteller</div>
+        <div>{{ kleidungsstueck["hersteller"] or "-" }}</div>
+
+        <div class="info-label">Interne Nr.</div>
+        <div>{{ kleidungsstueck["interne_nummer"] or "-" }}</div>
+
+        <div class="info-label">Barcode</div>
+        <div>{{ kleidungsstueck["barcode"] or "-" }}</div>
+
+        <div class="info-label">Waschvorgänge</div>
+        <div>{{ kleidungsstueck["waschzaehler"] }}</div>
+
+        <div class="info-label">Aktuelle Zuordnung</div>
+
+        <div>
+            {% if kleidungsstueck["mitglied_id"] %}
+                {{ kleidungsstueck["vorname"] }}
+                {{ kleidungsstueck["nachname"] }}
+            {% else %}
+                Kleiderkammer
+            {% endif %}
+        </div>
+
+    </div>
+
+
+    <form
+        method="POST"
+        onsubmit="return confirm(
+            'Soll dieses Kleidungsstück wirklich endgültig ausgesondert werden?'
+        );"
+    >
+
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token() }}"
+        >
+
+
+        <div class="form-group">
+
+            <label for="aussonderungsgrund">
+                Aussonderungsgrund
+            </label>
+
+            <textarea
+                id="aussonderungsgrund"
+                name="aussonderungsgrund"
+                required
+                placeholder="z. B. irreparabel beschädigt, verschlissen oder Schutzwirkung nicht mehr gewährleistet"
+            ></textarea>
+
+        </div>
+
+
+        <div class="aktionen">
+
+            <button
+                type="submit"
+                class="btn-aussondern"
+            >
+                Endgültig aussondern
+            </button>
+
+
+            {% if kleidungsstueck["mitglied_id"] %}
+
+                <a href="{{ url_for(
+                    'mitglied_detail',
+                    id=kleidungsstueck['mitglied_id'],
+                    bereich=kleidungsstueck['bereich']
+                ) }}">
+                    Abbrechen
+                </a>
+
+            {% else %}
+
+                <a href="{{ url_for('kleidung') }}">
+                    Abbrechen
+                </a>
+
+            {% endif %}
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}
