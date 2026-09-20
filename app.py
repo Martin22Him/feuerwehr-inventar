@@ -3713,6 +3713,119 @@ def kleidung_aussondern(id):
         kleidungsstueck=kleidungsstueck
     )
 
+@app.route("/kleidung/ausgesondert")
+@login_required
+def kleidung_ausgesondert():
+    aktive_wehr = get_aktive_wehr_id()
+
+    suche = request.args.get("suche", "").strip()
+    bereich = request.args.get("bereich", "").strip()
+
+    erlaubte_bereiche = [
+        "Einsatzkleidung",
+        "Ausgehuniform"
+    ]
+
+    if bereich not in erlaubte_bereiche:
+        bereich = ""
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    # ---------------------------------------------------------
+    # Ausgesonderte Kleidung laden
+    # ---------------------------------------------------------
+    sql = """
+        SELECT
+            k.id,
+            k.wehr_id,
+            k.groesse,
+            k.hersteller,
+            k.interne_nummer,
+            k.barcode,
+            k.waschzaehler,
+            k.bemerkung,
+            k.ausgesondert_am,
+            k.aussonderungsgrund,
+            ka.bezeichnung,
+            ka.bereich,
+            ka.sortierung,
+            w.name AS wehr_name
+        FROM kleidung k
+
+        JOIN kleidungsarten ka
+            ON k.kleidungsart_id = ka.id
+
+        LEFT JOIN wehren w
+            ON k.wehr_id = w.id
+
+        WHERE k.aktiv = FALSE
+          AND k.ausgesondert_am IS NOT NULL
+    """
+
+    params = []
+
+    # ---------------------------------------------------------
+    # Wehrfilter
+    # ---------------------------------------------------------
+    if aktive_wehr:
+        sql += " AND k.wehr_id = ?"
+        params.append(aktive_wehr)
+
+    # ---------------------------------------------------------
+    # Bereichsfilter
+    # ---------------------------------------------------------
+    if bereich:
+        sql += " AND ka.bereich = ?"
+        params.append(bereich)
+
+    # ---------------------------------------------------------
+    # Suche
+    # ---------------------------------------------------------
+    if suche:
+        suchwert = f"%{suche}%"
+
+        sql += """
+            AND (
+                LOWER(ka.bezeichnung) LIKE LOWER(?)
+                OR LOWER(COALESCE(k.groesse, '')) LIKE LOWER(?)
+                OR LOWER(COALESCE(k.hersteller, '')) LIKE LOWER(?)
+                OR LOWER(COALESCE(k.interne_nummer, '')) LIKE LOWER(?)
+                OR LOWER(COALESCE(k.barcode, '')) LIKE LOWER(?)
+                OR LOWER(COALESCE(k.aussonderungsgrund, '')) LIKE LOWER(?)
+            )
+        """
+
+        params.extend([
+            suchwert,
+            suchwert,
+            suchwert,
+            suchwert,
+            suchwert,
+            suchwert
+        ])
+
+    # Neueste Aussonderung zuerst
+    sql += """
+        ORDER BY
+            k.ausgesondert_am DESC,
+            ka.bereich ASC,
+            ka.sortierung ASC,
+            ka.bezeichnung ASC
+    """
+
+    db_execute(cursor, sql, params)
+    ausgesonderte_kleidung = cursor.fetchall()
+
+    verbindung.close()
+
+    return render_template(
+        "kleidung_ausgesondert.html",
+        kleidung=ausgesonderte_kleidung,
+        suche=suche,
+        bereich=bereich
+    )
+
 @app.route("/geraet/neu", methods=["GET", "POST"])
 @login_required
 @geraetewart_required
