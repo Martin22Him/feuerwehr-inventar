@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .hinzufuegen-box {
+        max-width: 700px;
+    }
+
+    .seiten-kopf {
+        margin-bottom: 20px;
+    }
+
+    .seiten-kopf h1 {
+        margin-bottom: 5px;
+    }
+
+    .untertitel {
+        color: #666;
+        line-height: 1.5;
+    }
+
+    .form-section {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 20px;
+    }
+
+    .form-group {
+        margin-bottom: 18px;
+    }
+
+    .form-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .form-group select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 10px 12px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        font-size: 15px;
+        background: #fff;
+    }
+
+    .hinweis {
+        margin-top: 18px;
+        padding: 15px;
+        border-radius: 8px;
+        background: #f5f7fa;
+        color: #555;
+        line-height: 1.5;
+    }
+
+    .aktionen {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+    }
+
+    .btn-save {
+        border: none;
+        border-radius: 6px;
+        padding: 11px 18px;
+        cursor: pointer;
+        font-size: 15px;
+    }
+</style>
+
+
+<div class="box hinzufuegen-box">
+
+    <div class="seiten-kopf">
+
+        <h1>Kleidungsstück hinzufügen</h1>
+
+        <div class="untertitel">
+            {{ mitglied["vorname"] }}
+            {{ mitglied["nachname"] }}
+        </div>
+
+    </div>
+
+
+    <form method="POST">
+
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token() }}"
+        >
+
+
+        <div class="form-section">
+
+            <div class="form-group">
+
+                <label for="kleidungsart_id">
+                    Kleidungsart
+                </label>
+
+                <select
+                    id="kleidungsart_id"
+                    name="kleidungsart_id"
+                    required
+                >
+
+                    <option value="">
+                        Bitte auswählen
+                    </option>
+
+
+                    <optgroup label="Einsatzkleidung">
+
+                        {% for art in kleidungsarten %}
+
+                            {% if art["bereich"] == "Einsatzkleidung" %}
+
+                                <option value="{{ art['id'] }}">
+                                    {{ art["bezeichnung"] }}
+                                </option>
+
+                            {% endif %}
+
+                        {% endfor %}
+
+                    </optgroup>
+
+
+                    <optgroup label="Ausgehuniform">
+
+                        {% for art in kleidungsarten %}
+
+                            {% if art["bereich"] == "Ausgehuniform" %}
+
+                                <option value="{{ art['id'] }}">
+                                    {{ art["bezeichnung"] }}
+                                </option>
+
+                            {% endif %}
+
+                        {% endfor %}
+
+                    </optgroup>
+
+                </select>
+
+            </div>
+
+
+            <div class="hinweis">
+                Es wird zunächst ein leerer Kleidungsdatensatz für dieses
+                Mitglied angelegt. Größe, Hersteller, interne Nummer und
+                Barcode können anschließend über „Bearbeiten“ eingetragen
+                werden.
+            </div>
+
+        </div>
+
+
+        <div class="aktionen">
+
+            <button
+                type="submit"
+                class="btn-save"
+            >
+                Hinzufügen
+            </button>
+
+            <a href="{{ url_for(
+                'mitglied_detail',
+                id=mitglied['id']
+            ) }}">
+                Abbrechen
+            </a>
+
+        </div>
+
+    </form>
+
+</div>
+
+{% endblock %}
