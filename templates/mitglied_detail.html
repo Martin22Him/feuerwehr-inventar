@@ -108,6 +108,10 @@
         cursor: pointer;
     }
 
+    .aussondern-link {
+        color: #b42318;
+    }
+
     .leer {
         padding: 25px;
         text-align: center;
@@ -300,37 +304,51 @@
                     </a>
 
 
-                    {% if
-                        current_user.role in ["admin", "geraetewart"]
-                        and item["darf_entfernt_werden"]
-                    %}
+                    {% if current_user.role in ["admin", "geraetewart"] %}
 
-                        <form
-                            method="POST"
-                            action="{{ url_for(
-                                'kleidung_eintrag_entfernen',
-                                id=item['id']
-                            ) }}"
-                            style="display: inline;"
-                            onsubmit="return confirm(
-                                'Soll dieser leere Kleidungseintrag wirklich entfernt werden?'
-                            );"
-                        >
+                        {% if item["darf_entfernt_werden"] %}
 
-                            <input
-                                type="hidden"
-                                name="csrf_token"
-                                value="{{ csrf_token() }}"
+                            <form
+                                method="POST"
+                                action="{{ url_for(
+                                    'kleidung_eintrag_entfernen',
+                                    id=item['id']
+                                ) }}"
+                                style="display: inline;"
+                                onsubmit="return confirm(
+                                    'Soll dieser leere Kleidungseintrag wirklich entfernt werden?'
+                                );"
                             >
 
-                            <button
-                                type="submit"
-                                class="eintrag-entfernen"
-                            >
-                                Eintrag entfernen
-                            </button>
+                                <input
+                                    type="hidden"
+                                    name="csrf_token"
+                                    value="{{ csrf_token() }}"
+                                >
 
-                        </form>
+                                <button
+                                    type="submit"
+                                    class="eintrag-entfernen"
+                                >
+                                    Eintrag entfernen
+                                </button>
+
+                            </form>
+
+
+                        {% elif item["status"] != "Zur Wäsche" %}
+
+                            <a
+                                href="{{ url_for(
+                                    'kleidung_aussondern',
+                                    id=item['id']
+                                ) }}"
+                                class="aussondern-link"
+                            >
+                                Aussondern
+                            </a>
+
+                        {% endif %}
 
                     {% endif %}
 
