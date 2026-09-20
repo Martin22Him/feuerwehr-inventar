@@ -41,18 +41,18 @@
     }
 
     .kleidung-bereich-kopf {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 15px;
-    flex-wrap: wrap;
-    margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
     }
 
     .kleidung-bereich-kopf h2 {
         margin: 0;
     }
-    
+
     .kleidung-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -91,7 +91,21 @@
     }
 
     .kleidung-actions {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
         margin-top: 15px;
+    }
+
+    .eintrag-entfernen {
+        border: none;
+        background: none;
+        padding: 0;
+        font: inherit;
+        color: #b42318;
+        text-decoration: underline;
+        cursor: pointer;
     }
 
     .leer {
@@ -107,16 +121,20 @@
     }
 </style>
 
+
 <div class="box">
 
     <div class="mitglied-kopf">
+
         <div>
+
             <h1>
                 {{ mitglied["vorname"] }}
                 {{ mitglied["nachname"] }}
             </h1>
 
             <div class="mitglied-meta">
+
                 <div>
                     <strong>Spindnummer:</strong>
                     {{ mitglied["spindnummer"] or "-" }}
@@ -128,27 +146,41 @@
                         {{ mitglied["bemerkung"] }}
                     </div>
                 {% endif %}
+
             </div>
+
         </div>
+
 
         <div>
             <a href="{{ url_for('mitglieder') }}">
                 ← Zurück zur Mitgliederliste
             </a>
         </div>
+
     </div>
+
 
     <div class="bereich-tabs">
 
         <a
-            href="{{ url_for('mitglied_detail', id=mitglied['id'], bereich='Einsatzkleidung') }}"
+            href="{{ url_for(
+                'mitglied_detail',
+                id=mitglied['id'],
+                bereich='Einsatzkleidung'
+            ) }}"
             class="bereich-tab {% if bereich == 'Einsatzkleidung' %}aktiv{% endif %}"
         >
             Einsatzkleidung
         </a>
 
+
         <a
-            href="{{ url_for('mitglied_detail', id=mitglied['id'], bereich='Ausgehuniform') }}"
+            href="{{ url_for(
+                'mitglied_detail',
+                id=mitglied['id'],
+                bereich='Ausgehuniform'
+            ) }}"
             class="bereich-tab {% if bereich == 'Ausgehuniform' %}aktiv{% endif %}"
         >
             Ausgehuniform
@@ -156,22 +188,24 @@
 
     </div>
 
-   <div class="kleidung-bereich-kopf">
 
-       <h2>{{ bereich }}</h2>
+    <div class="kleidung-bereich-kopf">
 
-       {% if current_user.role in ["admin", "geraetewart"] %}
+        <h2>{{ bereich }}</h2>
+
+        {% if current_user.role in ["admin", "geraetewart"] %}
 
             <a href="{{ url_for(
-                 'mitglied_kleidung_hinzufuegen',
-                 id=mitglied['id']
+                'mitglied_kleidung_hinzufuegen',
+                id=mitglied['id']
             ) }}">
                 + Kleidungsstück hinzufügen
             </a>
 
-       {% endif %}
+        {% endif %}
 
-   </div>
+    </div>
+
 
     <div class="kleidung-grid">
 
@@ -179,44 +213,127 @@
 
             <div class="kleidung-card">
 
-                <h3>{{ item["bezeichnung"] }}</h3>
+                <h3>
+                    {{ item["bezeichnung"] }}
+                </h3>
+
 
                 <div class="kleidung-daten">
 
-                    <div class="kleidung-label">Größe</div>
-                    <div>{{ item["groesse"] or "-" }}</div>
+                    <div class="kleidung-label">
+                        Größe
+                    </div>
 
-                    <div class="kleidung-label">Hersteller</div>
-                    <div>{{ item["hersteller"] or "-" }}</div>
-
-                    <div class="kleidung-label">Interne Nr.</div>
-                    <div>{{ item["interne_nummer"] or "-" }}</div>
-
-                    <div class="kleidung-label">Barcode</div>
-                    <div>{{ item["barcode"] or "-" }}</div>
-
-                    <div class="kleidung-label">Status</div>
                     <div>
+                        {{ item["groesse"] or "-" }}
+                    </div>
+
+
+                    <div class="kleidung-label">
+                        Hersteller
+                    </div>
+
+                    <div>
+                        {{ item["hersteller"] or "-" }}
+                    </div>
+
+
+                    <div class="kleidung-label">
+                        Interne Nr.
+                    </div>
+
+                    <div>
+                        {{ item["interne_nummer"] or "-" }}
+                    </div>
+
+
+                    <div class="kleidung-label">
+                        Barcode
+                    </div>
+
+                    <div>
+                        {{ item["barcode"] or "-" }}
+                    </div>
+
+
+                    <div class="kleidung-label">
+                        Status
+                    </div>
+
+                    <div>
+
                         {% if item["status"] == "Zur Wäsche" %}
+
                             <span class="status-waesche">
                                 🧺 Zur Wäsche
                             </span>
+
                         {% else %}
+
                             <span class="status-ausgegeben">
                                 {{ item["status"] }}
                             </span>
+
                         {% endif %}
+
                     </div>
 
-                    <div class="kleidung-label">Waschvorgänge</div>
-                    <div>{{ item["waschzaehler"] }}</div>
+
+                    <div class="kleidung-label">
+                        Waschvorgänge
+                    </div>
+
+                    <div>
+                        {{ item["waschzaehler"] }}
+                    </div>
 
                 </div>
 
+
                 <div class="kleidung-actions">
-                    <a href="{{ url_for('kleidung_bearbeiten', id=item['id']) }}">
+
+                    <a href="{{ url_for(
+                        'kleidung_bearbeiten',
+                        id=item['id']
+                    ) }}">
                         Bearbeiten
                     </a>
+
+
+                    {% if
+                        current_user.role in ["admin", "geraetewart"]
+                        and item["darf_entfernt_werden"]
+                    %}
+
+                        <form
+                            method="POST"
+                            action="{{ url_for(
+                                'kleidung_eintrag_entfernen',
+                                id=item['id']
+                            ) }}"
+                            style="display: inline;"
+                            onsubmit="return confirm(
+                                'Soll dieser leere Kleidungseintrag wirklich entfernt werden?'
+                            );"
+                        >
+
+                            <input
+                                type="hidden"
+                                name="csrf_token"
+                                value="{{ csrf_token() }}"
+                            >
+
+                            <button
+                                type="submit"
+                                class="eintrag-entfernen"
+                            >
+                                Eintrag entfernen
+                            </button>
+
+                        </form>
+
+                    {% endif %}
+
                 </div>
 
             </div>
