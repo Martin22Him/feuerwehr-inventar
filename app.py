@@ -1819,13 +1819,35 @@ def mitglied_detail(id):
             ka.bezeichnung,
             ka.bereich,
             ka.sortierung
-        FROM kleidung k
-        JOIN kleidungsarten ka
-            ON k.kleidungsart_id = ka.id
-        WHERE k.mitglied_id = ?
-          AND k.wehr_id = ?
-          AND ka.bereich = ?
-        ORDER BY ka.sortierung ASC, ka.bezeichnung ASC
+            CASE
+                WHEN k.groesse IS NULL
+                AND k.hersteller IS NULL
+                AND k.interne_nummer IS NULL
+                AND k.barcode IS NULL
+                AND k.bemerkung IS NULL
+                AND k.waschzaehler = 0
+                AND k.status = 'Ausgegeben'
+                AND NOT EXISTS (
+                    SELECT 1
+                    FROM waesche_historie wh
+                    WHERE wh.kleidung_id = k.id
+                )
+               THEN TRUE
+               ELSE FALSE
+           END AS darf_entfernt_werden
+
+       FROM kleidung k
+
+       JOIN kleidungsarten ka
+           ON k.kleidungsart_id = ka.id
+
+       WHERE k.mitglied_id = ?
+         AND k.wehr_id = ?
+         AND ka.bereich = ?
+
+       ORDER BY
+           ka.sortierung ASC,
+           ka.bezeichnung ASC
     """, (
         id,
         mitglied["wehr_id"],
