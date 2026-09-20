@@ -1843,6 +1843,183 @@ def mitglied_detail(id):
         bereich=bereich
     )
 
+@app.route("/mitglieder/<int:id>/kleidung/hinzufuegen", methods=["GET", "POST"])
+@login_required
+@geraetewart_required
+def mitglied_kleidung_hinzufuegen(id):
+    aktive_wehr = get_aktive_wehr_id()
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    # ---------------------------------------------------------
+    # Mitglied laden
+    # ---------------------------------------------------------
+    if aktive_wehr:
+        db_execute(cursor, """
+            SELECT
+                m.id,
+                m.wehr_id,
+                m.vorname,
+                m.nachname,
+                m.spindnummer
+            FROM mitglieder m
+            WHERE m.id = ?
+              AND m.wehr_id = ?
+              AND m.aktiv = TRUE
+        """, (
+            id,
+            aktive_wehr
+        ))
+    else:
+        db_execute(cursor, """
+            SELECT
+                m.id,
+                m.wehr_id,
+                m.vorname,
+                m.nachname,
+                m.spindnummer
+            FROM mitglieder m
+            WHERE m.id = ?
+              AND m.aktiv = TRUE
+        """, (id,))
+
+    mitglied = cursor.fetchone()
+
+    if not mitglied:
+        verbindung.close()
+        abort(404)
+
+    # ---------------------------------------------------------
+    # Alle aktiven Kleidungsarten laden
+    # ---------------------------------------------------------
+    db_execute(cursor, """
+        SELECT
+            id,
+            bezeichnung,
+            bereich,
+            sortierung
+        FROM kleidungsarten
+        WHERE aktiv = TRUE
+        ORDER BY
+            bereich ASC,
+            sortierung ASC,
+            bezeichnung ASC
+    """)
+
+    kleidungsarten = cursor.fetchall()
+
+    # ---------------------------------------------------------
+    # Neue Kleidungsart beim Mitglied hinzufügen
+    # ---------------------------------------------------------
+    if request.method == "POST":
+        kleidungsart_id = request.form.get(
+            "kleidungsart_id",
+            ""
+        ).strip()
+
+        if not kleidungsart_id:
+            verbindung.close()
+
+            flash(
+                "Bitte eine Kleidungsart auswählen.",
+                "danger"
+            )
+
+            return redirect(url_for(
+                "mitglied_kleidung_hinzufuegen",
+                id=id
+            ))
+
+        try:
+            kleidungsart_id = int(kleidungsart_id)
+        except ValueError:
+            verbindung.close()
+
+            flash(
+                "Ungültige Kleidungsart.",
+                "danger"
+            )
+
+            return redirect(url_for(
+                "mitglied_kleidung_hinzufuegen",
+                id=id
+            ))
+
+        # Prüfen, ob die Kleidungsart tatsächlich existiert
+        db_execute(cursor, """
+            SELECT
+                id,
+                bezeichnung,
+                bereich
+            FROM kleidungsarten
+            WHERE id = ?
+              AND aktiv = TRUE
+        """, (kleidungsart_id,))
+
+        kleidungsart = cursor.fetchone()
+
+        if not kleidungsart:
+            verbindung.close()
+            abort(404)
+
+        try:
+            db_execute(cursor, """
+                INSERT INTO kleidung (
+                    wehr_id,
+                    kleidungsart_id,
+                    mitglied_id,
+                    status,
+                    waschzaehler,
+                    aktiv
+                )
+                VALUES (
+                    ?, ?, ?, 'Ausgegeben', 0, TRUE
+                )
+            """, (
+                mitglied["wehr_id"],
+                kleidungsart_id,
+                mitglied["id"]
+            ))
+
+            verbindung.commit()
+
+            flash(
+                f"{kleidungsart['bezeichnung']} wurde dem Mitglied hinzugefügt.",
+                "success"
+            )
+
+            return redirect(url_for(
+                "mitglied_detail",
+                id=mitglied["id"],
+                bereich=kleidungsart["bereich"]
+            ))
+
+        except Exception as e:
+            verbindung.rollback()
+
+            print(
+                "FEHLER mitglied_kleidung_hinzufuegen:",
+                e
+            )
+
+            flash(
+                "Kleidungsstück konnte nicht hinzugefügt werden.",
+                "danger"
+            )
+
+        finally:
+            verbindung.close()
+
+    else:
+        verbindung.close()
+
+    return render_template(
+        "mitglied_kleidung_hinzufuegen.html",
+        mitglied=mitglied,
+        kleidungsarten=kleidungsarten
+    )
+
 @app.route("/kleidung/<int:id>/bearbeiten", methods=["GET", "POST"])
 @login_required
 @geraetewart_required
