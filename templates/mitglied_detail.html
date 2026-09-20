@@ -40,6 +40,19 @@
         border-color: #888;
     }
 
+    .kleidung-bereich-kopf {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+    }
+
+    .kleidung-bereich-kopf h2 {
+        margin: 0;
+    }
+    
     .kleidung-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -143,7 +156,22 @@
 
     </div>
 
-    <h2>{{ bereich }}</h2>
+   <div class="kleidung-bereich-kopf">
+
+       <h2>{{ bereich }}</h2>
+
+       {% if current_user.role in ["admin", "geraetewart"] %}
+
+            <a href="{{ url_for(
+                 'mitglied_kleidung_hinzufuegen',
+                 id=mitglied['id']
+            ) }}">
+                + Kleidungsstück hinzufügen
+            </a>
+
+       {% endif %}
+
+   </div>
 
     <div class="kleidung-grid">
 
