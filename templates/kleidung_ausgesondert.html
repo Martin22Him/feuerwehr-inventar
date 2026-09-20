@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<style>
+    .ausgesondert-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .ausgesondert-header h1 {
+        margin-bottom: 5px;
+    }
+
+    .ausgesondert-header p {
+        margin-top: 0;
+        color: #666;
+    }
+
+    .filter-box {
+        background: #f5f7fa;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 16px;
+        margin-bottom: 20px;
+    }
+
+    .filter-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr auto;
+        gap: 12px;
+        align-items: end;
+    }
+
+    .filter-group label {
+        display: block;
+        font-weight: 600;
+        margin-bottom: 6px;
+    }
+
+    .filter-group input,
+    .filter-group select {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 9px 10px;
+        border: 1px solid #ccc;
+        border-radius: 6px;
+        background: white;
+        font-size: 14px;
+    }
+
+    .filter-actions {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .filter-actions button {
+        padding: 10px 14px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+
+    .ergebnis-info {
+        margin-bottom: 12px;
+        color: #666;
+        font-size: 14px;
+    }
+
+    .aussonderungsgrund {
+        min-width: 220px;
+        white-space: normal;
+        line-height: 1.4;
+    }
+
+    .datum {
+        white-space: nowrap;
+    }
+
+    .leer {
+        padding: 30px;
+        text-align: center;
+        color: #666;
+    }
+
+    @media (max-width: 800px) {
+        .filter-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+</style>
+
+
+<div class="box">
+
+    <div class="ausgesondert-header">
+
+        <div>
+
+            <h1>Ausgesonderte Kleidung</h1>
+
+            <p>
+                Historische Übersicht dauerhaft ausgesonderter Kleidungsstücke.
+            </p>
+
+        </div>
+
+
+        <div>
+
+            <a href="{{ url_for('kleidung') }}">
+                ← Zurück zur Kleiderkammer
+            </a>
+
+        </div>
+
+    </div>
+
+
+    <form
+        method="GET"
+        class="filter-box"
+    >
+
+        <div class="filter-grid">
+
+            <div class="filter-group">
+
+                <label for="suche">
+                    Suche
+                </label>
+
+                <input
+                    type="text"
+                    id="suche"
+                    name="suche"
+                    value="{{ suche }}"
+                    placeholder="Kleidungsart, Barcode, interne Nummer, Grund ..."
+                >
+
+            </div>
+
+
+            <div class="filter-group">
+
+                <label for="bereich">
+                    Bereich
+                </label>
+
+                <select
+                    id="bereich"
+                    name="bereich"
+                >
+
+                    <option value="">
+                        Alle Bereiche
+                    </option>
+
+                    <option
+                        value="Einsatzkleidung"
+                        {% if bereich == "Einsatzkleidung" %}
+                            selected
+                        {% endif %}
+                    >
+                        Einsatzkleidung
+                    </option>
+
+                    <option
+                        value="Ausgehuniform"
+                        {% if bereich == "Ausgehuniform" %}
+                            selected
+                        {% endif %}
+                    >
+                        Ausgehuniform
+                    </option>
+
+                </select>
+
+            </div>
+
+
+            <div class="filter-actions">
+
+                <button type="submit">
+                    Filtern
+                </button>
+
+                {% if suche or bereich %}
+
+                    <a href="{{ url_for('kleidung_ausgesondert') }}">
+                        Zurücksetzen
+                    </a>
+
+                {% endif %}
+
+            </div>
+
+        </div>
+
+    </form>
+
+
+    <div class="ergebnis-info">
+
+        {{ kleidung|length }}
+
+        {% if kleidung|length == 1 %}
+            ausgesondertes Kleidungsstück
+        {% else %}
+            ausgesonderte Kleidungsstücke
+        {% endif %}
+
+    </div>
+
+
+    <div style="overflow-x: auto;">
+
+        <table class="inventar-tabelle">
+
+            <thead>
+
+                <tr>
+                    <th>Kleidungsart</th>
+                    <th>Größe</th>
+                    <th>Hersteller</th>
+                    <th>Interne Nr.</th>
+                    <th>Barcode</th>
+                    <th>Wäschen</th>
+                    <th>Ausgesondert am</th>
+                    <th>Aussonderungsgrund</th>
+                </tr>
+
+            </thead>
+
+
+            <tbody>
+
+                {% for item in kleidung %}
+
+                    <tr>
+
+                        <td>
+                            {{ item["bezeichnung"] }}
+                        </td>
+
+                        <td>
+                            {{ item["groesse"] or "-" }}
+                        </td>
+
+                        <td>
+                            {{ item["hersteller"] or "-" }}
+                        </td>
+
+                        <td>
+                            {{ item["interne_nummer"] or "-" }}
+                        </td>
+
+                        <td>
+                            {{ item["barcode"] or "-" }}
+                        </td>
+
+                        <td>
+                            {{ item["waschzaehler"] }}
+                        </td>
+
+                        <td class="datum">
+
+                            {% if item["ausgesondert_am"] %}
+
+                                {{ item["ausgesondert_am"].strftime("%d.%m.%Y") }}
+
+                            {% else %}
+
+                                -
+
+                            {% endif %}
+
+                        </td>
+
+                        <td class="aussonderungsgrund">
+                            {{ item["aussonderungsgrund"] or "-" }}
+                        </td>
+
+                    </tr>
+
+
+                {% else %}
+
+                    <tr>
+
+                        <td
+                            colspan="8"
+                            class="leer"
+                        >
+                            Keine ausgesonderten Kleidungsstücke vorhanden.
+                        </td>
+
+                    </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+{% endblock %}
