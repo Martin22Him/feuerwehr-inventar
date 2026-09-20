@@ -102,6 +102,10 @@
         font-size: 13px;
     }
 
+    .aussondern-link {
+        color: #b42318;
+    }
+
     .leer {
         padding: 30px;
         text-align: center;
@@ -127,24 +131,33 @@
     }
 </style>
 
+
 <div class="box">
 
     <div class="kleiderkammer-header">
 
         <div>
+
             <h1>Kleiderkammer</h1>
 
             <p>
                 Gesamtbestand der Bekleidung und persönliche Zuordnungen.
             </p>
+
         </div>
+
 
         <div class="kleiderkammer-actions">
 
             {% if current_user.role in ["admin", "geraetewart"] %}
-                <a href="{{ url_for('kleidung_neu') }}" class="nav-button">
+
+                <a
+                    href="{{ url_for('kleidung_neu') }}"
+                    class="nav-button"
+                >
                     + Kleidungsstück anlegen
                 </a>
+
             {% endif %}
 
         </div>
@@ -157,7 +170,10 @@
         <div class="filter-grid">
 
             <div class="filter-group">
-                <label for="suche">Suche</label>
+
+                <label for="suche">
+                    Suche
+                </label>
 
                 <input
                     type="text"
@@ -166,13 +182,20 @@
                     value="{{ suche }}"
                     placeholder="Name, Barcode, interne Nummer, Größe ..."
                 >
+
             </div>
 
 
             <div class="filter-group">
-                <label for="bereich">Bereich</label>
 
-                <select id="bereich" name="bereich">
+                <label for="bereich">
+                    Bereich
+                </label>
+
+                <select
+                    id="bereich"
+                    name="bereich"
+                >
 
                     <option value="">
                         Alle Bereiche
@@ -197,10 +220,12 @@
                     </option>
 
                 </select>
+
             </div>
 
 
             <div class="filter-group">
+
                 <label for="kleidungsart_id">
                     Kleidungsart
                 </label>
@@ -228,13 +253,20 @@
                     {% endfor %}
 
                 </select>
+
             </div>
 
 
             <div class="filter-group">
-                <label for="status">Status</label>
 
-                <select id="status" name="status">
+                <label for="status">
+                    Status
+                </label>
+
+                <select
+                    id="status"
+                    name="status"
+                >
 
                     <option value="">
                         Alle Status
@@ -268,6 +300,7 @@
                     </option>
 
                 </select>
+
             </div>
 
 
@@ -278,9 +311,11 @@
                 </button>
 
                 {% if suche or bereich or kleidungsart_id or status %}
+
                     <a href="{{ url_for('kleidung') }}">
                         Zurücksetzen
                     </a>
+
                 {% endif %}
 
             </div>
@@ -291,13 +326,17 @@
 
 
     <div class="ergebnis-info">
+
         {{ kleidung|length }}
+
         {% if kleidung|length == 1 %}
             Kleidungsstück
         {% else %}
             Kleidungsstücke
         {% endif %}
+
         gefunden
+
     </div>
 
 
@@ -306,6 +345,7 @@
         <table class="inventar-tabelle">
 
             <thead>
+
                 <tr>
                     <th>Kleidungsart</th>
                     <th>Größe</th>
@@ -317,7 +357,9 @@
                     <th>Wäschen</th>
                     <th>Bearbeiten</th>
                 </tr>
+
             </thead>
+
 
             <tbody>
 
@@ -345,6 +387,7 @@
                             {{ item["barcode"] or "-" }}
                         </td>
 
+
                         <td>
 
                             {% if item["status"] == "Verfügbar" %}
@@ -369,6 +412,7 @@
 
                         </td>
 
+
                         <td>
 
                             {% if item["mitglied_id"] %}
@@ -379,9 +423,11 @@
                                 </div>
 
                                 {% if item["spindnummer"] %}
+
                                     <div class="zuordnung-spind">
                                         Spind {{ item["spindnummer"] }}
                                     </div>
+
                                 {% endif %}
 
                             {% else %}
@@ -392,9 +438,11 @@
 
                         </td>
 
+
                         <td>
                             {{ item["waschzaehler"] }}
                         </td>
+
 
                         <td>
 
@@ -405,51 +453,91 @@
                                     id=item['id']
                                 ) }}">
                                     Bearbeiten
-                                 </a>
+                                </a>
 
-                                 {% if item["status"] == "Verfügbar" and not item["mitglied_id"] %}
 
-                                     &nbsp;|&nbsp;
+                                {% if
+                                    item["status"] == "Verfügbar"
+                                    and not item["mitglied_id"]
+                                %}
 
-                                     <a href="{{ url_for(
+                                    &nbsp;|&nbsp;
+
+                                    <a href="{{ url_for(
                                         'kleidung_ausgeben',
                                         id=item['id']
-                                     ) }}">
-                                         Ausgeben
-                                     </a>
+                                    ) }}">
+                                        Ausgeben
+                                    </a>
 
-                                  {% elif item["status"] == "Ausgegeben" and item["mitglied_id"] %}
 
-                                     &nbsp;|&nbsp;
+                                    &nbsp;|&nbsp;
 
-                                     <a href="{{ url_for(
-                                          'kleidung_zur_waesche',
-                                          id=item['id']
-                                     ) }}">
-                                          Zur Wäsche
-                                     </a>
-                            
-                                     &nbsp;|&nbsp;
+                                    <a
+                                        href="{{ url_for(
+                                            'kleidung_aussondern',
+                                            id=item['id']
+                                        ) }}"
+                                        class="aussondern-link"
+                                    >
+                                        Aussondern
+                                    </a>
 
-                                     <a href="{{ url_for(
-                                          'kleidung_zurueckgeben',
-                                          id=item['id']
-                                     ) }}">
-                                         Zurückgeben
-                                     </a> 
 
-                                  {% elif item["status"] == "Zur Wäsche" and item["mitglied_id"] %}
+                                {% elif
+                                    item["status"] == "Ausgegeben"
+                                    and item["mitglied_id"]
+                                %}
 
-                                     &nbsp;|&nbsp;
- 
-                                     <a href="{{ url_for(
-                                          'kleidung_aus_waesche_zurueck',
-                                          id=item['id']
-                                     ) }}">
-                                          Aus Wäsche zurück
-                                     </a>
-                            
-                                 {% endif %}
+                                    &nbsp;|&nbsp;
+
+                                    <a href="{{ url_for(
+                                        'kleidung_zur_waesche',
+                                        id=item['id']
+                                    ) }}">
+                                        Zur Wäsche
+                                    </a>
+
+
+                                    &nbsp;|&nbsp;
+
+                                    <a href="{{ url_for(
+                                        'kleidung_zurueckgeben',
+                                        id=item['id']
+                                    ) }}">
+                                        Zurückgeben
+                                    </a>
+
+
+                                    &nbsp;|&nbsp;
+
+                                    <a
+                                        href="{{ url_for(
+                                            'kleidung_aussondern',
+                                            id=item['id']
+                                        ) }}"
+                                        class="aussondern-link"
+                                    >
+                                        Aussondern
+                                    </a>
+
+
+                                {% elif
+                                    item["status"] == "Zur Wäsche"
+                                    and item["mitglied_id"]
+                                %}
+
+                                    &nbsp;|&nbsp;
+
+                                    <a href="{{ url_for(
+                                        'kleidung_aus_waesche_zurueck',
+                                        id=item['id']
+                                    ) }}">
+                                        Aus Wäsche zurück
+                                    </a>
+
+                                {% endif %}
+
 
                             {% else %}
 
@@ -461,12 +549,18 @@
 
                     </tr>
 
+
                 {% else %}
 
                     <tr>
-                        <td colspan="9" class="leer">
+
+                        <td
+                            colspan="9"
+                            class="leer"
+                        >
                             Keine Kleidungsstücke gefunden.
                         </td>
+
                     </tr>
 
                 {% endfor %}
