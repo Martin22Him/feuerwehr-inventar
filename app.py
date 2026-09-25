@@ -1768,7 +1768,7 @@ def mitglied_detail(id):
     cursor = verbindung.cursor()
 
     # ---------------------------------------------------------
-    # Mitglied laden
+    # Mitglied + Dienstgrad laden
     # ---------------------------------------------------------
     if aktive_wehr:
         db_execute(cursor, """
@@ -1780,10 +1780,23 @@ def mitglied_detail(id):
                 m.spindnummer,
                 m.aktiv,
                 m.bemerkung,
+                m.geschlecht,
+                m.dienstgrad_id,
+
+                d.bezeichnung_maennlich,
+                d.bezeichnung_weiblich,
+                d.sortierung AS dienstgrad_sortierung,
+
                 w.name AS wehr_name
+
             FROM mitglieder m
+
             LEFT JOIN wehren w
                 ON m.wehr_id = w.id
+
+            LEFT JOIN dienstgrade d
+                ON m.dienstgrad_id = d.id
+
             WHERE m.id = ?
               AND m.wehr_id = ?
         """, (
@@ -1800,10 +1813,23 @@ def mitglied_detail(id):
                 m.spindnummer,
                 m.aktiv,
                 m.bemerkung,
+                m.geschlecht,
+                m.dienstgrad_id,
+
+                d.bezeichnung_maennlich,
+                d.bezeichnung_weiblich,
+                d.sortierung AS dienstgrad_sortierung,
+
                 w.name AS wehr_name
+
             FROM mitglieder m
+
             LEFT JOIN wehren w
                 ON m.wehr_id = w.id
+
+            LEFT JOIN dienstgrade d
+                ON m.dienstgrad_id = d.id
+
             WHERE m.id = ?
         """, (id,))
 
@@ -1812,6 +1838,55 @@ def mitglied_detail(id):
     if not mitglied:
         verbindung.close()
         abort(404)
+
+    # ---------------------------------------------------------
+    # Angezeigte Dienstgradbezeichnung bestimmen
+    # ---------------------------------------------------------
+    dienstgrad_bezeichnung = None
+
+    if mitglied["dienstgrad_id"]:
+
+        geschlecht = (mitglied["geschlecht"] or "").strip().lower()
+
+        if geschlecht in ["frau", "weiblich", "w"]:
+            dienstgrad_bezeichnung = mitglied["bezeichnung_weiblich"]
+        else:
+            dienstgrad_bezeichnung = mitglied["bezeichnung_maennlich"]
+
+    # ---------------------------------------------------------
+    # Dienstgradabzeichen des Mitglieds laden
+    # ---------------------------------------------------------
+    dienstgradabzeichen = None
+
+    if mitglied["dienstgrad_id"]:
+        db_execute(cursor, """
+            SELECT
+                dab.id AS bestand_id,
+                dab.gesamtbestand,
+
+                COALESCE(daz.anzahl, 0) AS anzahl_mitglied,
+
+                COALESCE((
+                    SELECT SUM(daz2.anzahl)
+                    FROM dienstgradabzeichen_zuordnung daz2
+                    WHERE daz2.bestand_id = dab.id
+                ), 0) AS ausgegeben_gesamt
+
+            FROM dienstgradabzeichen_bestand dab
+
+            LEFT JOIN dienstgradabzeichen_zuordnung daz
+                ON daz.bestand_id = dab.id
+               AND daz.mitglied_id = ?
+
+            WHERE dab.wehr_id = ?
+              AND dab.dienstgrad_id = ?
+        """, (
+            id,
+            mitglied["wehr_id"],
+            mitglied["dienstgrad_id"]
+        ))
+
+        dienstgradabzeichen = cursor.fetchone()
 
     # ---------------------------------------------------------
     # Kleidung des Mitglieds laden
@@ -1874,7 +1949,9 @@ def mitglied_detail(id):
         "mitglied_detail.html",
         mitglied=mitglied,
         kleidung=kleidung_liste,
-        bereich=bereich
+        bereich=bereich,
+        dienstgrad_bezeichnung=dienstgrad_bezeichnung,
+        dienstgradabzeichen=dienstgradabzeichen
     )
 
 @app.route("/mitglieder/<int:id>/kleidung/hinzufuegen", methods=["GET", "POST"])
