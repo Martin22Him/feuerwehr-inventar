@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="box">
+
+    <h1>Dienstgradabzeichen</h1>
+
+    <table class="inventar-tabelle">
+
+        <thead>
+            <tr>
+                <th>Dienstgrad</th>
+                <th>Gesamtbestand</th>
+                <th>Ausgegeben</th>
+                <th>Verfügbar</th>
+            </tr>
+        </thead>
+
+        <tbody>
+
+            {% for item in bestaende %}
+
+                <tr>
+                    <td>
+                        {{ item["bezeichnung_maennlich"] }}
+                    </td>
+
+                    <td>
+                        {{ item["gesamtbestand"] }}
+                    </td>
+
+                    <td>
+                        {{ item["ausgegeben"] }}
+                    </td>
+
+                    <td>
+                        {{ item["verfuegbar"] }}
+                    </td>
+                </tr>
+
+            {% else %}
+
+                <tr>
+                    <td colspan="4">
+                        Keine Dienstgradabzeichen vorhanden.
+                    </td>
+                </tr>
+
+            {% endfor %}
+
+        </tbody>
+
+    </table>
+
+    <p style="margin-top: 20px;">
+        <a href="{{ url_for('kleidung') }}">
+            ← Zurück zur Kleiderkammer
+        </a>
+    </p>
+
+</div>
+
+{% endblock %}
