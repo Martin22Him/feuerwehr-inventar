@@ -3266,6 +3266,68 @@ def kleidung():
         aktive_wehr=aktive_wehr
     )
 
+@app.route("/kleidung/dienstgradabzeichen")
+@login_required
+def dienstgradabzeichen():
+    aktive_wehr = get_aktive_wehr_id()
+
+    if not aktive_wehr:
+        flash("Bitte zuerst eine Wehr auswählen.", "danger")
+        return redirect(url_for("kleidung"))
+
+    verbindung = hole_db_verbindung()
+    cursor = verbindung.cursor()
+
+    db_execute(cursor, """
+        SELECT
+            dab.id AS bestand_id,
+            dab.wehr_id,
+            dab.dienstgrad_id,
+            dab.gesamtbestand,
+
+            d.bezeichnung_maennlich,
+            d.bezeichnung_weiblich,
+            d.sortierung,
+
+            COALESCE(SUM(daz.anzahl), 0) AS ausgegeben,
+
+            dab.gesamtbestand
+                - COALESCE(SUM(daz.anzahl), 0)
+                AS verfuegbar
+
+        FROM dienstgradabzeichen_bestand dab
+
+        JOIN dienstgrade d
+            ON dab.dienstgrad_id = d.id
+
+        LEFT JOIN dienstgradabzeichen_zuordnung daz
+            ON daz.bestand_id = dab.id
+
+        WHERE dab.wehr_id = ?
+          AND d.aktiv = TRUE
+
+        GROUP BY
+            dab.id,
+            dab.wehr_id,
+            dab.dienstgrad_id,
+            dab.gesamtbestand,
+            d.bezeichnung_maennlich,
+            d.bezeichnung_weiblich,
+            d.sortierung
+
+        ORDER BY
+            d.sortierung ASC
+    """, (aktive_wehr,))
+
+    bestaende = cursor.fetchall()
+
+    verbindung.close()
+
+    return render_template(
+        "dienstgradabzeichen.html",
+        bestaende=bestaende
+    )
+
 @app.route("/kleidung/arten", methods=["GET", "POST"])
 @login_required
 @geraetewart_required
