@@ -2,62 +2,216 @@
 
 {% block content %}
 
+<style>
+    .dienstgrad-kopf {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+    }
+
+    .dienstgrad-kopf h1 {
+        margin-top: 0;
+        margin-bottom: 5px;
+    }
+
+    .dienstgrad-hinweis {
+        color: #666;
+    }
+
+    .dienstgrad-tabelle {
+        width: 100%;
+        border-collapse: collapse;
+    }
+
+    .dienstgrad-tabelle th,
+    .dienstgrad-tabelle td {
+        padding: 10px 12px;
+        border-bottom: 1px solid #ddd;
+        text-align: left;
+    }
+
+    .dienstgrad-tabelle th {
+        font-weight: 600;
+    }
+
+    .bestand-input {
+        width: 100px;
+        box-sizing: border-box;
+        padding: 8px 10px;
+        border: 1px solid #bbb;
+        border-radius: 6px;
+        font-size: 15px;
+    }
+
+    .bestand-zahl {
+        font-weight: 600;
+    }
+
+    .verfuegbar {
+        font-weight: 600;
+    }
+
+    .aktionen {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 22px;
+    }
+
+    .btn-speichern {
+        border: none;
+        border-radius: 6px;
+        padding: 11px 18px;
+        cursor: pointer;
+        font-size: 15px;
+    }
+
+    @media (max-width: 700px) {
+        .dienstgrad-tabelle {
+            font-size: 14px;
+        }
+
+        .dienstgrad-tabelle th,
+        .dienstgrad-tabelle td {
+            padding: 8px;
+        }
+
+        .bestand-input {
+            width: 80px;
+        }
+    }
+</style>
+
+
 <div class="box">
 
-    <h1>Dienstgradabzeichen</h1>
+    <div class="dienstgrad-kopf">
 
-    <table class="inventar-tabelle">
+        <div>
+            <h1>Dienstgradabzeichen</h1>
 
-        <thead>
-            <tr>
-                <th>Dienstgrad</th>
-                <th>Gesamtbestand</th>
-                <th>Ausgegeben</th>
-                <th>Verfügbar</th>
-            </tr>
-        </thead>
+            <div class="dienstgrad-hinweis">
+                Bestand und Ausgabe der Dienstgradabzeichen
+            </div>
+        </div>
 
-        <tbody>
+        <div>
+            <a href="{{ url_for('kleidung') }}">
+                ← Zurück zur Kleiderkammer
+            </a>
+        </div>
 
-            {% for item in bestaende %}
+    </div>
 
+
+    <form method="POST">
+
+        <input
+            type="hidden"
+            name="csrf_token"
+            value="{{ csrf_token() }}"
+        >
+
+
+        <table class="dienstgrad-tabelle">
+
+            <thead>
                 <tr>
-                    <td>
-                        {{ item["bezeichnung_maennlich"] }}
-                    </td>
-
-                    <td>
-                        {{ item["gesamtbestand"] }}
-                    </td>
-
-                    <td>
-                        {{ item["ausgegeben"] }}
-                    </td>
-
-                    <td>
-                        {{ item["verfuegbar"] }}
-                    </td>
+                    <th>Dienstgrad</th>
+                    <th>Gesamtbestand</th>
+                    <th>Ausgegeben</th>
+                    <th>Verfügbar</th>
                 </tr>
+            </thead>
 
-            {% else %}
+            <tbody>
 
-                <tr>
-                    <td colspan="4">
-                        Keine Dienstgradabzeichen vorhanden.
-                    </td>
-                </tr>
+                {% for item in bestaende %}
 
-            {% endfor %}
+                    <tr>
 
-        </tbody>
+                        <td>
+                            {{ item["bezeichnung_maennlich"] }}
+                        </td>
 
-    </table>
 
-    <p style="margin-top: 20px;">
-        <a href="{{ url_for('kleidung') }}">
-            ← Zurück zur Kleiderkammer
-        </a>
-    </p>
+                        <td>
+
+                            {% if current_user.role in ["admin", "geraetewart"] %}
+
+                                <input
+                                    type="number"
+                                    name="bestand_{{ item['bestand_id'] }}"
+                                    class="bestand-input"
+                                    value="{{ item['gesamtbestand'] }}"
+                                    min="0"
+                                    step="1"
+                                >
+
+                            {% else %}
+
+                                <span class="bestand-zahl">
+                                    {{ item["gesamtbestand"] }}
+                                </span>
+
+                            {% endif %}
+
+                        </td>
+
+
+                        <td>
+                            {{ item["ausgegeben"] }}
+                        </td>
+
+
+                        <td>
+                            <span class="verfuegbar">
+                                {{ item["verfuegbar"] }}
+                            </span>
+                        </td>
+
+                    </tr>
+
+                {% else %}
+
+                    <tr>
+                        <td colspan="4">
+                            Keine Dienstgradabzeichen vorhanden.
+                        </td>
+                    </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+
+        <div class="aktionen">
+
+            {% if current_user.role in ["admin", "geraetewart"] %}
+
+                <button
+                    type="submit"
+                    class="btn-speichern"
+                >
+                    Bestände speichern
+                </button>
+
+            {% endif %}
+
+
+            <a href="{{ url_for('kleidung') }}">
+                Zurück
+            </a>
+
+        </div>
+
+    </form>
 
 </div>
 
