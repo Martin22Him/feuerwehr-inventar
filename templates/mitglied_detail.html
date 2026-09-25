@@ -17,6 +17,34 @@
         line-height: 1.7;
     }
 
+    .dienstgrad-box {
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        background: #f8f9fa;
+        padding: 16px 18px;
+        margin-bottom: 20px;
+    }
+
+    .dienstgrad-box h2 {
+        margin-top: 0;
+        margin-bottom: 14px;
+        font-size: 20px;
+    }
+
+    .dienstgrad-daten {
+        display: grid;
+        grid-template-columns: 190px 1fr;
+        gap: 8px 15px;
+    }
+
+    .dienstgrad-label {
+        font-weight: 600;
+    }
+
+    .dienstgrad-fehlt {
+        color: #777;
+    }
+
     .bereich-tabs {
         display: flex;
         gap: 10px;
@@ -122,6 +150,15 @@
         .kleidung-grid {
             grid-template-columns: 1fr;
         }
+
+        .dienstgrad-daten {
+            grid-template-columns: 1fr;
+            gap: 3px;
+        }
+
+        .dienstgrad-label {
+            margin-top: 8px;
+        }
     }
 </style>
 
@@ -161,6 +198,48 @@
                 ← Zurück zur Mitgliederliste
             </a>
         </div>
+
+    </div>
+
+
+    <div class="dienstgrad-box">
+
+        <h2>Dienstgrad</h2>
+
+        {% if mitglied["dienstgrad_id"] %}
+
+            <div class="dienstgrad-daten">
+
+                <div class="dienstgrad-label">
+                    Dienstgrad
+                </div>
+
+                <div>
+                    {{ dienstgrad_bezeichnung }}
+                </div>
+
+
+                <div class="dienstgrad-label">
+                    Dienstgradabzeichen
+                </div>
+
+                <div>
+                    {% if dienstgradabzeichen %}
+                        {{ dienstgradabzeichen["anzahl_mitglied"] }} Stück
+                    {% else %}
+                        0 Stück
+                    {% endif %}
+                </div>
+
+            </div>
+
+        {% else %}
+
+            <div class="dienstgrad-fehlt">
+                Für dieses Mitglied ist noch kein Dienstgrad hinterlegt.
+            </div>
+
+        {% endif %}
 
     </div>
 
