@@ -3468,6 +3468,7 @@ def dienstgradabzeichen():
             d.bezeichnung_maennlich,
             d.bezeichnung_weiblich,
             d.sortierung,
+            d.bild_datei,
 
             COALESCE(SUM(daz.anzahl), 0) AS ausgegeben,
 
@@ -3493,7 +3494,8 @@ def dienstgradabzeichen():
             dab.gesamtbestand,
             d.bezeichnung_maennlich,
             d.bezeichnung_weiblich,
-            d.sortierung
+            d.sortierung,
+            d.bild_datei
 
         ORDER BY
             d.sortierung ASC
