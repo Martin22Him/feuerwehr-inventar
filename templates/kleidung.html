@@ -150,13 +150,21 @@
         <div class="kleiderkammer-actions">
 
             <a
-               href="{{ url_for('kleidung_ausgesondert') }}"
-               class="nav-button"
+                href="{{ url_for('dienstgradabzeichen') }}"
+                class="nav-button"
             >
-               Ausgesonderte Kleidung
+                Dienstgradabzeichen
             </a>
 
-            
+
+            <a
+                href="{{ url_for('kleidung_ausgesondert') }}"
+                class="nav-button"
+            >
+                Ausgesonderte Kleidung
+            </a>
+
+
             {% if current_user.role in ["admin", "geraetewart"] %}
 
                 <a
