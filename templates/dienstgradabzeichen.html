@@ -31,11 +31,39 @@
         padding: 10px 12px;
         border-bottom: 1px solid #ddd;
         text-align: left;
+        vertical-align: middle;
     }
 
     .dienstgrad-tabelle th {
         font-weight: 600;
     }
+
+    /* ---------------------------------------------------------
+       Dienstgradabzeichen
+       --------------------------------------------------------- */
+
+    .abzeichen-spalte {
+        width: 90px;
+        text-align: center !important;
+    }
+
+    .abzeichen-bild {
+        display: block;
+        max-width: 65px;
+        max-height: 65px;
+        width: auto;
+        height: auto;
+        margin: 0 auto;
+        object-fit: contain;
+    }
+
+    .kein-abzeichen {
+        color: #999;
+    }
+
+    /* ---------------------------------------------------------
+       Bestand
+       --------------------------------------------------------- */
 
     .bestand-input {
         width: 100px;
@@ -54,6 +82,10 @@
         font-weight: 600;
     }
 
+    /* ---------------------------------------------------------
+       Aktionen
+       --------------------------------------------------------- */
+
     .aktionen {
         display: flex;
         gap: 15px;
@@ -70,7 +102,12 @@
         font-size: 15px;
     }
 
+    /* ---------------------------------------------------------
+       Mobile Ansicht
+       --------------------------------------------------------- */
+
     @media (max-width: 700px) {
+
         .dienstgrad-tabelle {
             font-size: 14px;
         }
@@ -83,6 +120,15 @@
         .bestand-input {
             width: 80px;
         }
+
+        .abzeichen-spalte {
+            width: 70px;
+        }
+
+        .abzeichen-bild {
+            max-width: 50px;
+            max-height: 50px;
+        }
     }
 </style>
 
@@ -92,17 +138,24 @@
     <div class="dienstgrad-kopf">
 
         <div>
-            <h1>Dienstgradabzeichen</h1>
+
+            <h1>
+                Dienstgradabzeichen
+            </h1>
 
             <div class="dienstgrad-hinweis">
                 Bestand und Ausgabe der Dienstgradabzeichen
             </div>
+
         </div>
 
+
         <div>
+
             <a href="{{ url_for('kleidung') }}">
                 ← Zurück zur Kleiderkammer
             </a>
+
         </div>
 
     </div>
@@ -117,78 +170,142 @@
         >
 
 
-        <table class="dienstgrad-tabelle">
+        <div style="overflow-x: auto;">
 
-            <thead>
-                <tr>
-                    <th>Dienstgrad</th>
-                    <th>Gesamtbestand</th>
-                    <th>Ausgegeben</th>
-                    <th>Verfügbar</th>
-                </tr>
-            </thead>
+            <table class="dienstgrad-tabelle">
 
-            <tbody>
-
-                {% for item in bestaende %}
+                <thead>
 
                     <tr>
 
-                        <td>
-                            {{ item["bezeichnung_maennlich"] }}
-                        </td>
+                        <th class="abzeichen-spalte">
+                            Abzeichen
+                        </th>
+
+                        <th>
+                            Dienstgrad
+                        </th>
+
+                        <th>
+                            Gesamtbestand
+                        </th>
+
+                        <th>
+                            Ausgegeben
+                        </th>
+
+                        <th>
+                            Verfügbar
+                        </th>
+
+                    </tr>
+
+                </thead>
 
 
-                        <td>
+                <tbody>
 
-                            {% if current_user.role in ["admin", "geraetewart"] %}
+                    {% for item in bestaende %}
 
-                                <input
-                                    type="number"
-                                    name="bestand_{{ item['bestand_id'] }}"
-                                    class="bestand-input"
-                                    value="{{ item['gesamtbestand'] }}"
-                                    min="0"
-                                    step="1"
-                                >
+                        <tr>
 
-                            {% else %}
+                            <!-- Abzeichen -->
+                            <td class="abzeichen-spalte">
 
-                                <span class="bestand-zahl">
-                                    {{ item["gesamtbestand"] }}
+                                {% if item["bild_datei"] %}
+
+                                    <img
+                                        src="{{ url_for(
+                                            'static',
+                                            filename='dienstgradabzeichen/' ~ item['bild_datei']
+                                        ) }}"
+                                        alt="Dienstgradabzeichen {{ item['bezeichnung_maennlich'] }}"
+                                        class="abzeichen-bild"
+                                    >
+
+                                {% else %}
+
+                                    <span class="kein-abzeichen">
+                                        –
+                                    </span>
+
+                                {% endif %}
+
+                            </td>
+
+
+                            <!-- Dienstgrad -->
+                            <td>
+
+                                {{ item["bezeichnung_maennlich"] }}
+
+                            </td>
+
+
+                            <!-- Gesamtbestand -->
+                            <td>
+
+                                {% if current_user.role in ["admin", "geraetewart"] %}
+
+                                    <input
+                                        type="number"
+                                        name="bestand_{{ item['bestand_id'] }}"
+                                        class="bestand-input"
+                                        value="{{ item['gesamtbestand'] }}"
+                                        min="0"
+                                        step="1"
+                                    >
+
+                                {% else %}
+
+                                    <span class="bestand-zahl">
+                                        {{ item["gesamtbestand"] }}
+                                    </span>
+
+                                {% endif %}
+
+                            </td>
+
+
+                            <!-- Ausgegeben -->
+                            <td>
+
+                                {{ item["ausgegeben"] }}
+
+                            </td>
+
+
+                            <!-- Verfügbar -->
+                            <td>
+
+                                <span class="verfuegbar">
+                                    {{ item["verfuegbar"] }}
                                 </span>
 
-                            {% endif %}
+                            </td>
 
-                        </td>
-
-
-                        <td>
-                            {{ item["ausgegeben"] }}
-                        </td>
+                        </tr>
 
 
-                        <td>
-                            <span class="verfuegbar">
-                                {{ item["verfuegbar"] }}
-                            </span>
-                        </td>
+                    {% else %}
 
-                    </tr>
+                        <tr>
 
-                {% else %}
+                            <td colspan="5">
 
-                    <tr>
-                        <td colspan="4">
-                            Keine Dienstgradabzeichen vorhanden.
-                        </td>
-                    </tr>
+                                Keine Dienstgradabzeichen vorhanden.
 
-                {% endfor %}
+                            </td>
 
-            </tbody>
+                        </tr>
 
-        </table>
+                    {% endfor %}
+
+                </tbody>
+
+            </table>
+
+        </div>
 
 
         <div class="aktionen">
