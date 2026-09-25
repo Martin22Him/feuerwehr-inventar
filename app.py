@@ -3266,7 +3266,7 @@ def kleidung():
         aktive_wehr=aktive_wehr
     )
 
-@app.route("/kleidung/dienstgradabzeichen")
+@app.route("/kleidung/dienstgradabzeichen", methods=["GET", "POST"])
 @login_required
 def dienstgradabzeichen():
     aktive_wehr = get_aktive_wehr_id()
@@ -3277,6 +3277,109 @@ def dienstgradabzeichen():
 
     verbindung = hole_db_verbindung()
     cursor = verbindung.cursor()
+
+    # ---------------------------------------------------------
+    # Bestände speichern
+    # ---------------------------------------------------------
+    if request.method == "POST":
+
+        # Nur Admin und Gerätewart dürfen Bestände ändern
+        if current_user.role not in ["admin", "geraetewart"]:
+            verbindung.close()
+            abort(403)
+
+        try:
+            # Alle Dienstgradbestände der aktiven Wehr laden
+            db_execute(cursor, """
+                SELECT
+                    id,
+                    gesamtbestand
+                FROM dienstgradabzeichen_bestand
+                WHERE wehr_id = ?
+            """, (aktive_wehr,))
+
+            vorhandene_bestaende = cursor.fetchall()
+
+            for bestand in vorhandene_bestaende:
+                bestand_id = bestand["id"]
+
+                feldname = f"bestand_{bestand_id}"
+                wert = request.form.get(feldname, "").strip()
+
+                # Falls ein Feld fehlt, vorhandenen Wert beibehalten
+                if wert == "":
+                    continue
+
+                try:
+                    neuer_bestand = int(wert)
+                except ValueError:
+                    raise ValueError(
+                        "Der Gesamtbestand muss eine ganze Zahl sein."
+                    )
+
+                if neuer_bestand < 0:
+                    raise ValueError(
+                        "Der Gesamtbestand darf nicht negativ sein."
+                    )
+
+                # Bereits ausgegebene Abzeichen ermitteln
+                db_execute(cursor, """
+                    SELECT
+                        COALESCE(SUM(anzahl), 0) AS ausgegeben
+                    FROM dienstgradabzeichen_zuordnung
+                    WHERE bestand_id = ?
+                """, (bestand_id,))
+
+                ausgegeben = cursor.fetchone()["ausgegeben"]
+
+                # Bestand darf nicht kleiner als bereits ausgegeben sein
+                if neuer_bestand < ausgegeben:
+                    raise ValueError(
+                        f"Der Gesamtbestand kann nicht auf "
+                        f"{neuer_bestand} gesetzt werden, weil bereits "
+                        f"{ausgegeben} Abzeichen ausgegeben sind."
+                    )
+
+                db_execute(cursor, """
+                    UPDATE dienstgradabzeichen_bestand
+                    SET gesamtbestand = ?
+                    WHERE id = ?
+                      AND wehr_id = ?
+                """, (
+                    neuer_bestand,
+                    bestand_id,
+                    aktive_wehr
+                ))
+
+            verbindung.commit()
+
+            flash(
+                "Die Bestände der Dienstgradabzeichen wurden gespeichert.",
+                "success"
+            )
+
+            verbindung.close()
+
+            return redirect(url_for("dienstgradabzeichen"))
+
+        except ValueError as e:
+            verbindung.rollback()
+
+            flash(str(e), "danger")
+
+        except Exception as e:
+            verbindung.rollback()
+
+            print("FEHLER dienstgradabzeichen speichern:", e)
+
+            flash(
+                "Die Bestände konnten nicht gespeichert werden.",
+                "danger"
+            )
+
+    # ---------------------------------------------------------
+    # Bestände anzeigen
+    # ---------------------------------------------------------
 
     db_execute(cursor, """
         SELECT
